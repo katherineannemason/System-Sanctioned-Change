@@ -1,0 +1,1052 @@
+---
+title: "Supplemental Analyses"
+author: "Katherine Anne Mason"
+date: "2024-03-10"
+output: html_document
+---
+
+```{r, Load packages}
+
+library(readxl)
+library(writexl)
+library(lme4)
+library(nlme)
+library(ordinal)
+library(carData)
+library(car)
+library(lmerTest)
+library(tidyverse)
+library(lsmeans)
+library(stats)
+library(sjPlot)
+library(sjmisc)
+library(ggplot2)
+library(glmmTMB) 
+library(MASS)
+library(psych)
+library(ltm)
+library(Hmisc)
+library(broom)
+library(knitr)
+library(EMAtools)
+library(sjstats)
+library(effectsize)
+
+```
+
+
+###### IDEOLOGY X COUNTRY DECOMPOSTITION ######
+
+```{r, Import and prepare data}
+
+# Import data sets
+
+df_17 <- read.csv("Syst_Sanct_17_Data.csv")
+
+# Make the belief data set for the full sample 
+
+df17_Belief <- pivot_longer(df_17, cols = c("Belief1", "Belief2", "Belief3", "Belief4"), names_to = "BeliefItem", values_to = "Belief")
+
+df17_Belief
+
+# Make the policy data set for the full sample
+
+df17_Policy <- pivot_longer(df_17, cols = c("Policy1", "Policy2", "Policy3", "Policy4", "Policy5", "Policy6", "Policy7", "Policy8", "Policy9"), names_to = "PolicyItem", values_to = "Policy")
+
+df17_Policy
+
+# Make sure US the reference country.
+
+df17_Belief$Country <- as.factor(df17_Belief$Country)
+df17_Policy$Country <- as.factor(df17_Policy$Country)
+df_17$Country <- as.factor(df_17$Country)
+
+df17_Belief$Country <- relevel(df17_Belief$Country, ref = 'USA')
+df17_Policy$Country <- relevel(df17_Policy$Country, ref = 'USA')
+df_17$Country <- relevel(df_17$Country, ref = 'USA')
+
+# Standardize belief and policy data sets
+
+# Belief 
+
+z_df17_Belief <- as.data.frame(scale(df17_Belief[, c("ide_c", "Age", "Edu", "Income","Belief")]), center = T)
+
+z_df17_Belief <- cbind(df17_Belief[, c("ResponseId", "Country", "BeliefItem", "cond_effects", "gend_effects", "Poland_E", "Sweden_E",	"Chile_E", "Netherlands_E",	"UK_E",	"Italy_E", "Nigeria_E",	"Germany_E", "France_E", "Japan_E",	"Russia_E",	"Israel_E",	"Brazil_E",	"Canada_E",	"Switzerland_E",	"Belgium_E"), drop = FALSE], as.data.frame(z_df17_Belief))
+
+z_df17_Belief
+
+# Policy
+
+z_df17_Policy <- as.data.frame(scale(df17_Policy[, c("ide_c", "Age", "Edu", "Income","Policy")]), center = T)
+
+z_df17_Policy <- cbind(df17_Policy[, c("ResponseId", "Country", "PolicyItem", "cond_effects", "gend_effects", "Poland_E", "Sweden_E",	"Chile_E", "Netherlands_E",	"UK_E",	"Italy_E", "Nigeria_E",	"Germany_E", "France_E", "Japan_E",	"Russia_E",	"Israel_E",	"Brazil_E",	"Canada_E",	"Switzerland_E",	"Belgium_E"), drop = FALSE], as.data.frame(z_df17_Policy))
+
+z_df17_Policy
+
+```
+
+# BELIEF IN CLIMATE CHANGE
+
+```{r, Function, effect of ideology on belief for each country}
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Country reference level
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- lme(Belief ~ ide_c*cond_effects*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | BeliefItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(msMaxIter = 1000))
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed) 
+  result <- ci_frame[2, ] 
+  
+  return(result)
+}
+
+# Data frame to store the results
+Belief_Ide <- data.frame(
+  country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df17_Belief$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df17_Belief)
+  Belief_Ide <- bind_rows(Belief_Ide, data.frame(country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Belief_Ide) <- df17_Belief$country
+
+Belief_Ide
+
+# Export the table as a data set.
+# write.csv(Belief_Ide, file = "Belief_Ide.csv")
+
+```
+
+# SUPPORT FOR POLICY
+
+```{r, Function, effect of ideology on policy support for each country}
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+
+    # Country reference level
+    data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- lme(Policy ~ ide_c*cond_effects*Country + 
+                gend_effects + Age + Edu + Income, 
+                random = ~ 1 | PolicyItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(msMaxIter = 1000))
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed) 
+  result <- ci_frame[2, ] 
+  
+  return(result)
+}
+
+# Create a data frame to store the results
+Policy_Ide <- data.frame(
+  country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df17_Policy$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df17_Policy)
+  Policy_Ide <- bind_rows(Policy_Ide, data.frame(country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Policy_Ide) <- df17_Policy$country
+
+Policy_Ide
+
+# Export the table as a data set.
+# write.csv(Policy_Ide, file = "Policy_Ide")
+
+```
+
+# SHARING INTENTIONS
+
+```{r, Function, effect of ideology on sharing for each country}
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Country reference level
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- glm(SHAREcc ~ cond_effects*Country*ide_c + gend_effects + Age + Edu + Income, data = data,   family = binomial(link = logit))
+  
+  # Extract estimates
+  est <- coef(model)["ide_c"]
+  
+  # Extract confidence intervals
+  ci <- confint(model, "ide_c")
+  
+  # CIs into data frame 
+  ci <- as.data.frame(t(ci))
+  colnames(ci) <- c("lower", "upper")
+  
+  return(list(est = est, ci = ci))
+}
+
+# Create a data frame to store the results
+Share_Ide <- data.frame(
+  country = character(0),
+  lower = numeric(0),
+  est = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df_17$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  results <- fit_and_extract_ci(country_name, df_17)
+  est <- results$est
+  ci <- results$ci
+  Share_Ide <- bind_rows(Share_Ide, data.frame(country = country_name, est, ci))
+}
+
+# Make country the index variable
+rownames(Share_Ide) <- df_17$country
+
+Share_Ide
+
+# Export the table as a data set.
+# write.csv(Share_Ide, file = "Share_Ide.csv")
+
+```
+
+# ACTION
+
+```{r, Function, effect of condition on action}
+
+#Make sure WEPTcc is factor.
+df_17$WEPTcc <- as.factor(df_17$WEPTcc)
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Country reference level
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- polr(WEPTcc ~ cond_effects*ide_c*Country + Age + Edu + Income, data = data, Hess=TRUE)
+  
+  # Store table
+  Model_Table <- coef(summary(model))
+
+  # Calculate and store p values
+  p <- pnorm(abs(Model_Table[, "t value"]), lower.tail = FALSE) * 2
+
+  # Combine table with p-value
+  Action <- cbind(Model_Table, "p value" = p)
+  
+  # Extract estimates
+  est <- coef(model)["ide_c"]
+  
+  # Extract confidence intervals
+  ci <- confint(model, "ide_c")
+  
+  # CIs into data frame 
+  ci <- as.data.frame(t(ci))
+  colnames(ci) <- c("lower", "upper")
+  
+  return(list(est = est, ci = ci))
+}
+
+# Create a data frame to store the results
+Action_Ide <- data.frame(
+  country = character(0),
+  lower = numeric(0),
+  est = numeric(0),
+  upper = numeric(0)
+)
+
+# List of country names (replace with your 14 country names)
+country_names <- unique(df_17$Country)
+
+# Loop through each country and compute estimates and confidence intervals
+for (country_name in country_names) {
+  results <- fit_and_extract_ci(country_name, df_17)
+  est <- results$est
+  ci <- results$ci
+  Action_Ide <- bind_rows(Action_Ide, data.frame(country = country_name, est, ci))
+} 
+
+# Make country the index variable
+rownames(Action_Ide) <- df_17$country
+
+Action_Ide
+
+# Export the table as a data set.
+# write.csv(Action_Ide, file = "Action_Ide.csv")
+
+```
+
+
+###### POLITICAL CONGRUENCY ANALYSES ######
+
+
+```{r, Prepare belief and policy congruency data set}
+
+congruency_df <- read.csv('df180_Congruency.csv')
+
+# Make belief data set long 
+
+df_belief_congruence <- pivot_longer(congruency_df, cols = c("Belief1", "Belief2", "Belief3", "Belief4"), names_to = "BeliefItem", values_to = "Belief")
+
+df_belief_congruence
+
+# Get rid of unwanted variables
+
+df_belief_congruence <- subset(df_belief_congruence, select=c('PowerShift', "ResponseId", "Country", "cond", "condName", "Gender", "Age", "Edu", "Income", "ide", "cond_effects", "ide_c", "age_c", "income_c", "edu_c", "ide_low", "ide_high", "GenderBin", "gend_effects", "ide_Bin", "Congruence", "BeliefItem", "Belief"))
+
+df_belief_congruence
+
+
+# Make policy data set long
+
+df_policy_congruence <- pivot_longer(congruency_df, cols = c("Policy1", "Policy2", "Policy3", "Policy4", "Policy5", "Policy6", "Policy7", "Policy8", "Policy9"), names_to = "PolicyItem", values_to = "Policy")
+
+df_policy_congruence
+
+# Get rid of unwanted variables
+
+df_policy_congruence <- subset(df_policy_congruence, select=c('PowerShift', "ResponseId", "Country", "cond", "condName", "Gender", "Age", "Edu", "Income", "ide", "cond_effects", "ide_c", "age_c", "income_c", "edu_c", "ide_low", "ide_high", "GenderBin", "gend_effects", "ide_Bin", "Congruence", "PolicyItem", "Policy"))
+
+df_policy_congruence
+
+```
+
+# CONGRUENCY ANALYSES BELIEF
+
+```{r, Ideology X Condition X Country X Congruency on Belief Omnibus}
+
+Congruency_Belief1 <- lmer(Belief ~cond_effects*ide_c*Congruence*Country + (1 | BeliefItem), data = df_belief_congruence)
+summary(Congruency_Belief1)
+anova(Congruency_Belief1)
+
+# Add covariates
+
+Congruency_Belief2 <- lmer(Belief ~cond_effects*ide_c*Congruence*Country + gend_effects + Age + Edu + Income + (1 | BeliefItem), data = df_belief_congruence)
+summary(Congruency_Belief2)
+
+Congruency_Belief2_table <- anova(Congruency_Belief2) %>%
+                      round(., 4) %>%
+                      kable()
+
+Congruency_Belief2_table
+
+  
+```
+
+# LIBERALS BELIEF
+
+```{r, Function for belief for liberals when incongruent}
+
+df_belief_congruence$Country <- factor(df_belief_congruence$Country) %>%
+                                relevel(., ref = "USA")
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Set the reference level to the current country
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the  model
+  model <- lme(Belief ~ ide_low*cond_effects*Congruence*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | BeliefItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(msMaxIter = 1000))
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed) 
+  result <- ci_frame[3, ]
+  
+  return(result)
+}
+
+# Create a data frame 
+Incongruence_Belief_Lib <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df_belief_congruence$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df_belief_congruence)
+  Incongruence_Belief_Lib <- bind_rows(Incongruence_Belief_Lib, data.frame(Country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Incongruence_Belief_Lib) <- df_belief_congruence$country
+
+Incongruence_Belief_Lib
+
+# Add a column labeled "Congruency" and make all rows "incongruent".
+Incongruence_Belief_Lib <- Incongruence_Belief_Lib %>%
+  mutate(Congruency = "Incongruent") %>%
+  relocate(Congruency, .before = lower) 
+
+# Add a column labeled "Ideology" and make all rows "Liberal".
+Incongruence_Belief_Lib <- Incongruence_Belief_Lib %>%
+  mutate(Ideology = "Liberal") %>%
+  relocate(Ideology, .before = lower) 
+
+Incongruence_Belief_Lib
+
+```
+
+```{r, Function for belief for liberals when congruent}
+
+# Recode congruence measure so that congruent now = 0
+
+# Recode the congruency variable
+df_belief_congruence$Congruence_R <- ifelse(df_belief_congruence$Congruence == 0, 1, 0)
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Set the reference level to the current country
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- lme(Belief ~ ide_low*cond_effects*Congruence_R*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | BeliefItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(msMaxIter = 1000))
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed) 
+  result <- ci_frame[3, ]
+  
+  return(result)
+}
+
+# Create a data frame to store the results
+Congruence_Belief_Lib <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df_belief_congruence$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df_belief_congruence)
+  Congruence_Belief_Lib <- bind_rows(Congruence_Belief_Lib, data.frame(Country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Congruence_Belief_Lib) <- df_belief_congruence$country
+
+Congruence_Belief_Lib
+
+# Add a column labeled "Congruency" and make all rows "incongruent".
+Congruence_Belief_Lib <- Congruence_Belief_Lib %>%
+  mutate(Congruency = "Congruent") %>%
+  relocate(Congruency, .before = lower) # Move variable
+
+# Add a column labeled "Ideology" and make all rows "Liberal".
+Congruence_Belief_Lib <- Congruence_Belief_Lib %>%
+  mutate(Ideology = "Liberal") %>%
+  relocate(Ideology, .before = lower) # Move variable
+
+Congruence_Belief_Lib
+
+```
+
+```{r, Combine liberal incongruent and congruent}
+
+# Combine the data sets 
+Congruency_Belief_Lib <- rbind(Congruence_Belief_Lib, Incongruence_Belief_Lib)
+Congruency_Belief_Lib
+
+Congruency_Belief_Lib <- Congruency_Belief_Lib %>% 
+  arrange(Country)
+
+Congruency_Belief_Lib
+
+# Export the table as a data set.
+# write.csv(Congruency_Belief_Lib, file = "Congruency_Belief_Lib.csv")
+
+```
+
+# CONSERVATIVES BELIEF
+
+```{r, Function for belief for conservatives when incongruent}
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Set the reference level to the current country
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the linear mixed-effects model
+  model <- lme(Belief ~ ide_high*cond_effects*Congruence*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | BeliefItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(msMaxIter = 1000))
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed) 
+  result <- ci_frame[3, ] 
+  
+  return(result)
+}
+
+# Create a data frame to store the results
+Incongruence_Belief_Con <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df_belief_congruence$Country)
+
+# Loop through each country and compute estimates and CIS
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df_belief_congruence)
+  Incongruence_Belief_Con <- bind_rows(Incongruence_Belief_Con, data.frame(Country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Incongruence_Belief_Con) <- df_belief_congruence$country
+
+# Add a column labeled "Congruency" and make all rows "incongruent".
+Incongruence_Belief_Con <- Incongruence_Belief_Con %>%
+  mutate(Congruency = "Incongruent") %>%
+  relocate(Congruency, .before = lower) # Move variable
+
+# Add a column labeled "Ideology" and make all rows "Liberal".
+Incongruence_Belief_Con <- Incongruence_Belief_Con %>%
+  mutate(Ideology = "Conservative") %>%
+  relocate(Ideology, .before = lower) # Move variable 
+
+Incongruence_Belief_Con
+
+```
+
+```{r, Function for belief across ideology when congruent}
+
+# Recode congruence measure so that congruent now = 0
+
+df_belief_congruence$Congruence_R <- ifelse(df_belief_congruence$Congruence == 0, 1, 0)
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Set the reference level to the current country
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit model
+  model <- lme(Belief ~ ide_high*cond_effects*Congruence_R*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | BeliefItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(msMaxIter = 1000))
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed) 
+  result <- ci_frame[3, ] 
+  
+  return(result)
+}
+
+# Create a data frame to store the results
+Congruence_Belief_Con <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df_belief_congruence$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df_belief_congruence)
+  Congruence_Belief_Con <- bind_rows(Congruence_Belief_Con, data.frame(Country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Congruence_Belief_Con) <- df_belief_congruence$country
+
+# Add a column labeled "Congruency" and make all rows "incongruent".
+Congruence_Belief_Con <- Congruence_Belief_Con %>%
+  mutate(Congruency = "Congruent") %>%
+  relocate(Congruency, .before = lower) # Move variable
+
+# Add a column labeled "Ideology" and make all rows "Conservative".
+Congruence_Belief_Con <- Congruence_Belief_Con %>%
+  mutate(Ideology = "Conservative") %>%
+  relocate(Ideology, .before = lower) # Move variable
+
+Congruence_Belief_Con
+
+```
+
+```{r, Combine incongruent and congruent conservative}
+
+# Combine the data sets 
+Congruency_Belief_Con <- rbind(Congruence_Belief_Con, Incongruence_Belief_Con)
+Congruency_Belief_Lib
+
+Congruency_Belief_Lib <- Congruency_Belief_Con %>% 
+  arrange(Country)
+
+Congruency_Belief_Con
+
+# Export the table as a data set.
+# write.csv(Congruency_Belief_Con, file = "Congruency_Belief_Con2.csv")
+
+```
+
+# CONGRUENCY ANALYSES POLICY
+
+```{r, Ideology X Condition X Country X Congruency on Policy Omnibus}
+
+Congruency_Policy1 <- lmer(Policy ~ide_c*cond_effects*Congruence*Country + (1 | PolicyItem), data = df_policy_congruence)
+summary(Congruency_Policy1)
+anova(Congruency_Policy1)
+
+# Add covariates
+
+Congruency_Policy2 <- lmer(Policy ~cond_effects*ide_c*Congruence*Country + gend_effects + Age + Edu + Income + (1 | PolicyItem), data = df_policy_congruence)
+summary(Congruency_Policy2)
+
+Congruency_Policy1_table <- anova(Congruency_Policy2) %>%
+                      round(., 4) %>%
+                      kable()
+
+Congruency_Policy1_table
+
+```
+
+# LIBERALS POLICY
+
+```{r, Function for policy for liberals when incongruent}
+
+df_policy_congruence$Country <- factor(df_policy_congruence$Country) %>%
+                                relevel(., ref = "USA")
+
+# Define a function
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Set the reference level to the current country
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- lme(Policy ~ ide_low*cond_effects*Congruence*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | PolicyItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(opt = "optim", msMaxIter = 1000)) # Use if not converging
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed)
+  result <- ci_frame[3, ]
+  
+  return(result)
+}
+
+# Create a data frame to store the results
+Incongruence_Policy_Lib <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df_policy_congruence$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df_policy_congruence)
+  Incongruence_Policy_Lib <- bind_rows(Incongruence_Policy_Lib, data.frame(Country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Incongruence_Policy_Lib) <- df_policy_congruence$country
+
+# Add a column labeled "Congruency" and make all rows "incongruent".
+Incongruence_Policy_Lib <- Incongruence_Policy_Lib %>%
+  mutate(Congruency = "Incongruent") %>%
+  relocate(Congruency, .before = lower) 
+
+# Add a column labeled "Ideology" and make all rows "Liberal".
+Incongruence_Policy_Lib <- Incongruence_Policy_Lib %>%
+  mutate(Ideology = "Liberal") %>%
+  relocate(Ideology, .before = lower) 
+
+Incongruence_Policy_Lib
+
+```
+
+```{r, Function for policy for liberals when congruent}
+
+# Recode congruence measure so that congruent now = 0
+
+df_policy_congruence$Congruence_R <- ifelse(df_policy_congruence$Congruence == 0, 1, 0)
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Set the reference level to the current country
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- lme(Policy ~ ide_low*cond_effects*Congruence_R*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | PolicyItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(opt = "optim", msMaxIter = 1000)) # Use if not converging
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed)
+  result <- ci_frame[3, ]
+  
+  return(result)
+}
+
+# Create a data frame to store the results
+Congruence_Policy_Lib <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df_policy_congruence$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df_policy_congruence)
+  Congruence_Policy_Lib <- bind_rows(Congruence_Policy_Lib, data.frame(Country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Congruence_Policy_Lib) <- df_policy_congruence$country
+
+# Add a column labeled "Congruency" and make all rows "incongruent".
+Congruence_Policy_Lib <- Congruence_Policy_Lib %>%
+  mutate(Congruency = "Congruent") %>%
+  relocate(Congruency, .before = lower) 
+
+# Add a column labeled "Ideology" and make all rows "Liberal".
+Congruence_Policy_Lib <- Congruence_Policy_Lib %>%
+  mutate(Ideology = "Liberal") %>%
+  relocate(Ideology, .before = lower) 
+
+Congruence_Policy_Lib
+
+```
+
+```{r, Combine incongruent and congruent liberal}
+
+# Combine the data sets 
+Congruency_Policy_Lib <- rbind(Congruence_Policy_Lib, Incongruence_Policy_Lib)
+Congruency_Policy_Lib
+
+Congruency_Policy_Lib <- Congruency_Policy_Lib %>% 
+  arrange(Country)
+
+Congruency_Policy_Lib
+
+# Export the table as a data set.
+# write.csv(Congruency_Policy_Lib, file = "Congruency_Policy_Lib.csv")
+
+```
+
+# CONSERVATIVES POLICY 
+
+```{r, Function for policy for conservatives when incongruent}
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Set the reference level to the current country
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- lme(Policy ~ ide_high*cond_effects*Congruence*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | PolicyItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(opt = "optim", msMaxIter = 1000)) # Use if not converging
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed) 
+  result <- ci_frame[3, ] 
+  
+  return(result)
+}
+
+# Create a data frame to store the results
+Incongruence_Policy_Con <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df_policy_congruence$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df_policy_congruence)
+  Incongruence_Policy_Con <- bind_rows(Incongruence_Policy_Con, data.frame(Country = country_name, ci))
+}
+
+rownames(Incongruence_Policy_Con) <- df_policy_congruence$country
+
+# Add a column labeled "Congruency" and make all rows "incongruent".
+Incongruence_Policy_Con <- Incongruence_Policy_Con %>%
+  mutate(Congruency = "Incongruent") %>%
+  relocate(Congruency, .before = lower) # Move variable
+
+# Add a column labeled "Ideology" and make all rows "Conservative".
+Incongruence_Policy_Con <- Incongruence_Policy_Con %>%
+  mutate(Ideology = "Conservative") %>%
+  relocate(Ideology, .before = lower) # Move variable
+
+Incongruence_Policy_Con
+
+```
+
+```{r, Function for belief collapsed across ideology when congruent}
+
+# Recode congruence measure so that congruent now = 0
+
+df_policy_congruence$Congruence_R <- ifelse(df_policy_congruence$Congruence == 0, 1, 0)
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Set the reference level to the current country
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- lme(Policy ~ ide_high*cond_effects*Congruence_R*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | PolicyItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(opt = "optim", msMaxIter = 1000)) # Use if not converging
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed) 
+  result <- ci_frame[3, ] 
+  
+  return(result)
+}
+
+# Create a data frame to store the results
+Congruence_Policy_Con <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df_policy_congruence$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df_policy_congruence)
+  Congruence_Policy_Con <- bind_rows(Congruence_Policy_Con, data.frame(Country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Congruence_Policy_Con) <- df_policy_congruence$country
+
+# Add a column labeled "Congruency" and make all rows "incongruent".
+Congruence_Policy_Con <- Congruence_Policy_Con %>%
+  mutate(Congruency = "Congruent") %>%
+  relocate(Congruency, .before = lower) # Move variable
+
+# Add a column labeled "Ideology" and make all rows "Conservative".
+Congruence_Policy_Con <- Congruence_Policy_Con %>%
+  mutate(Ideology = "Conservative") %>%
+  relocate(Ideology, .before = lower) # Move variable
+
+Congruence_Policy_Con
+
+```
+
+```{r, Combine incongruent and congruent conservative}
+
+# Combine the data sets 
+Congruency_Policy_Con <- rbind(Congruence_Policy_Con, Incongruence_Policy_Con)
+Congruency_Policy_Con
+
+Congruency_Policy_Con <- Congruency_Policy_Con %>% 
+  arrange(Country)
+
+Congruency_Policy_Con
+
+# Export the table as a data set.
+# write.csv(Congruency_Policy_Con, file = "Congruency_Policy_Con.csv")
+
+```
+
+# CONGRUENCY ANALYSIS SHARING
+
+```{r, Ideology X Condition X Country X Congruency on Sharing Omnibus}
+
+# SAS output
+
+```
+
+# CONGRUENCY ANALYSIS ACTION
+
+```{r, Ideology X Condition X Country X Congruency on Action Omnibus}
+
+# SAS output
+
+```
+
+
+###### EFFECT OF GDP, CRI, EPI, CLIMATE CHANGE CONCERN, AND BELEIF POLARIZATION ON DVS ######
+
+```{r, Import and prepare data}
+
+mechanism <- read.csv("Mechanism.csv")
+
+# Standardize 
+
+Zmechanism <- data.frame(ZBelief_Est = scale(mechanism$Belief_Est, center = TRUE, scale = TRUE),
+                         ZPolicy_Est = scale(mechanism$Policy_Est, center = TRUE, scale = TRUE),
+                         ZShare_Est = scale(mechanism$Share_Est, center = TRUE, scale = TRUE),
+                         ZAction_Est = scale(mechanism$Action_Est, center = TRUE, scale = TRUE),
+                         Zgdp = scale(mechanism$GDP, center = TRUE, scale = TRUE),
+                         Zcri = scale(mechanism$CRI, center = TRUE, scale = TRUE),
+                         Zepi = scale(mechanism$EPI, center = TRUE, scale = TRUE),
+                         ZccCONCERN = scale(mechanism$ccCONCERN, center = TRUE, scale = TRUE),
+                         Zabs_Dif_Belief = scale(mechanism$abs_Dif_Belief, center = TRUE, scale = TRUE)
+                         )
+
+Zmechanism <- data.frame(cbind(mechanism, Zmechanism))
+                                                
+Zmechanism
+
+```
+
+```{r, Mechanisms}
+
+# Belief 
+
+Mech_Belief <- lm(ZBelief_Est ~ Zgdp + Zcri + Zepi + ZccCONCERN + Zabs_Dif_Belief, data = Zmechanism)
+summary(Mech_Belief)
+
+Mech_Belief_table <- summary(Mech_Belief)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Mech_Belief_table
+
+# Policy
+
+Mech_Policy <- lm(ZPolicy_Est ~ Zgdp + Zcri + Zepi + ZccCONCERN + Zabs_Dif_Belief, data = Zmechanism)
+summary(Mech_Policy)
+
+# Make a table
+
+Mech_Policy_table <- summary(Mech_Policy)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Mech_Policy_table
+
+# Sharing
+
+Mech_Share <- lm(ZShare_Est ~ Zgdp + Zcri + Zepi + ZccCONCERN + Zabs_Dif_Belief, data = Zmechanism)
+summary(Mech_Share)
+
+# Make a table
+
+Mech_Share_table <- summary(Mech_Share)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Mech_Share_table
+
+
+# Action
+
+Mech_Action <- lm(ZAction_Est ~ Zgdp + Zcri + Zepi + ZccCONCERN + Zabs_Dif_Belief, data = Zmechanism)
+summary(Mech_Action)
+
+# Make a table
+
+Mech_Action_table <- summary(Mech_Action)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Mech_Action_table
+
+```
+
+```
