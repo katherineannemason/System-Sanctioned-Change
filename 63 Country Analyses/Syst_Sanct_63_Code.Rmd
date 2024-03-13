@@ -1,0 +1,380 @@
+---
+title: "Analyses Involving All 63 Countries"
+author: "Katherine Anne Mason"
+date: "2024-01-15"
+output: html_document
+---
+
+```{r, Load packages}
+
+library(readxl)
+library(writexl)
+library(lme4)
+library(nlme)
+library(ordinal)
+library(carData)
+library(car)
+library(lmerTest)
+library(tidyverse)
+library(lsmeans)
+library(stats)
+library(sjPlot)
+library(sjmisc)
+library(ggplot2)
+library(glmmTMB) 
+library(MASS)
+library(psych)
+library(ltm)
+library(Hmisc)
+library(broom)
+library(knitr)
+library(tools)
+library(EMAtools)
+library(sjstats)
+library(effectsize)
+
+```
+
+```{r, Import and prepare data}
+
+dfAll <- read.csv("Syst_Sanct_63_Data.csv")
+
+# Make the belief data set for the full sample 
+
+dfAll_Belief <- pivot_longer(dfAll, cols = c("Belief1", "Belief2", "Belief3", "Belief4"), names_to = "BeliefItem", values_to = "Belief")
+
+dfAll_Belief
+
+# Make the policy data set for the full sample
+
+dfAll_Policy <- pivot_longer(dfAll, cols = c("Policy1", "Policy2", "Policy3", "Policy4", "Policy5", "Policy6", "Policy7", "Policy8", "Policy9"), names_to = "PolicyItem", values_to = "Policy")
+
+dfAll_Policy
+
+# Standardize belief and policy data sets
+
+# Belief 
+
+z_dfAll_Belief <- as.data.frame(scale(dfAll_Belief[, c("ide_c", "Age", "Edu", "Income","Belief", "cond_effects", "gend_effects")]), center = T)
+
+z_dfAll_Belief <- cbind(dfAll_Belief[, c("ResponseId", "Country", "BeliefItem"), drop = FALSE], as.data.frame(z_dfAll_Belief ))
+
+z_dfAll_Belief
+
+# Policy
+
+z_dfAll_Policy <- as.data.frame(scale(dfAll_Policy[, c("ide_c", "Age", "Edu", "Income","Policy", "cond_effects", "gend_effects")]), center = T)
+
+z_dfAll_Policy <- cbind(dfAll_Policy[, c("ResponseId", "Country", "PolicyItem"), drop = FALSE], as.data.frame(z_dfAll_Policy))
+
+z_dfAll_Policy
+
+```
+
+## BELIEF ##
+
+```{r, Ideology X Condition on Beleif in CC, Country is Random}
+
+# Without covariates 
+
+Belief_All1 <- lmer(Belief ~ide_c*cond_effects + (1 | Country) + (1 | BeliefItem), data = dfAll_Belief)
+summary(Belief_All1)
+
+# Standardized
+
+Belief_All2 <- lmer(Belief ~ide_c*cond_effects + (1 | Country) + (1 | BeliefItem), data = z_dfAll_Belief)
+summary(Belief_All2)
+
+# With covariates 
+
+Belief_All3 <- lmer(Belief ~ide_c*cond_effects + gend_effects + Age + Edu + Income + (1 | Country) + (1 | BeliefItem), data = dfAll_Belief)
+summary(Belief_All3) 
+
+# Extract coefficients and make a table
+
+Belief_All3_table <- summary(Belief_All3)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Belief_All3_table
+
+# Effect size conversion
+lme.dscore(Belief_All3, dfAll_Belief,"lme4")
+
+# Standardized
+
+Belief_All4 <- lmer(Belief ~ide_c*cond_effects + gend_effects + Age + Edu + Income + (1 | Country) + (1 | BeliefItem), data = z_dfAll_Belief)
+summary(Belief_All4)
+
+# Extract coefficients and make a table
+
+Belief_All4_table <- summary(Belief_All4)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Belief_All4_table
+
+```
+
+```{r, Belief graph}
+
+# Rename condition so that neater:
+dfAll_Belief$condName2[dfAll_Belief$condName == 'Control'] <- 'Control'
+dfAll_Belief$condName2[dfAll_Belief$condName == 'SystemJust'] <- 'System Sanctioned Change'
+
+Belief_Graph <- lmer(Belief ~ ide*condName2 + gend_effects + Age + Edu + Income + (1 | Country) + (1 | BeliefItem), data = dfAll_Belief)
+print(summary(Belief_Graph))
+
+set_theme(theme_classic())
+
+graph1 <- plot_model(
+  Belief_Graph, 
+  type = "eff", 
+  terms = c("ide", "condName2"), 
+  mdrt.values = 'meansd', 
+  title = "A. Belief in Climate Change", 
+  show.data = TRUE, 
+  colors = c("darkmagenta", "cyan4"),
+  dot.size = .1,
+  axis.title = '',
+  axis.labels = 'Ideology',
+  legend.title = 'Condition',
+  line.size = .9,
+  ylim = c(50, 100),
+  # jitter=TRUE
+)
+
+graph1 <- graph1 +
+  labs(x = "") +
+  scale_x_continuous(limits = c(15, 87), breaks = c(20, 80), labels = c("Liberal/
+Left Wing", "Conservative/
+Right Wing")) +
+  scale_y_continuous(limits = c(50, 100)) +
+  theme(
+    plot.margin = unit(c(0, 4.5, 0, 4.5), "cm"),
+    legend.position = "none",  
+    plot.title = element_text(size = 14, face = "bold"),  
+    axis.title.x = element_text(size = 14), 
+    axis.title.y = element_text(size = 14),  
+    axis.text.x = element_text(size = 14),  
+    axis.text.y = element_text(size = 14)   
+  )
+
+graph1
+
+```
+
+## POLICY ##
+
+```{r, Ideology X Condition on Policy, Country is Random}
+
+# Without covariates 
+
+Policy_All1 <- lmer(Policy ~ide_c*cond_effects + gend_effects + (1 | Country) + (1 | PolicyItem), data = dfAll_Policy)
+summary(Policy_All1)
+
+# Standardized
+
+Policy_All2 <- lmer(Policy ~ide_c*cond_effects + gend_effects + (1 | Country) + (1 | PolicyItem), data = z_dfAll_Policy)
+summary(Policy_All2)
+
+# With covariates 
+
+Policy_All3 <- lmer(Policy ~ide_c*cond_effects + gend_effects + Age + Edu + Income + (1 | Country) + (1 | PolicyItem), data = dfAll_Policy)
+summary(Policy_All3)
+
+# Extract coefficients and make a table
+
+Policy_All3_table <- summary(Policy_All3)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Policy_All3_table
+
+# Effect size conversion
+
+lme.dscore(Policy_All3, dfAll_Policy,"lme4")
+
+# Standardized
+ 
+Policy_All4 <- lmer(Policy ~ide_c*cond_effects + gend_effects + Age + Edu + Income + (1 | Country) + (1 | PolicyItem), data = z_dfAll_Policy)
+summary(Policy_All4)
+
+# Extract coefficients and make a table
+
+Policy_All4_table <- summary(Policy_All4)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Policy_All4_table
+
+```
+
+```{r, Policy Graph}
+
+# Rename condition so that neater:
+dfAll_Policy$condName2[dfAll_Policy$condName == 'Control'] <- 'Control'
+dfAll_Policy$condName2[dfAll_Policy$condName == 'SystemJust'] <- 'System Justification'
+
+set_theme(theme_classic())
+
+Policy_Graph <- lmer(Policy ~ide + condName2 + ide*condName2 + gend_effects + Age + Edu + Income + (1 | Country) + (1 | PolicyItem), data = dfAll_Policy)
+
+graph2 <- plot_model(
+  Policy_Graph, 
+  type = "eff", 
+  terms = c("ide", "condName2"), 
+  mdrt.values = 'meansd', 
+  title = "B. Support for Pro-environmental Policies", 
+  show.data = TRUE, 
+  colors = c("darkmagenta", "cyan4"),
+  dot.size = .03,
+  axis.title = '',
+  axis.labels = 'Ideology',
+  legend.title = 'Condition',
+  line.size = .9,
+  ylim = c(50, 100),
+  # jitter=TRUE
+)
+
+graph2 <- graph2 +
+  labs(x = "") +
+  scale_x_continuous(limits = c(15, 87), breaks = c(20, 80), labels = c("Liberal/
+Left Wing", "Conservative/
+Right Wing")) +
+  scale_y_continuous(limits = c(50, 100)) +
+  theme(
+    plot.margin = unit(c(0, 4.5, 0, 4.5), "cm"),
+    legend.position = "none",  # Remove legend
+    plot.title = element_text(size = 14, face = "bold"), 
+    axis.title.x = element_text(size = 14),  
+    axis.title.y = element_text(size = 14),  
+    axis.text.x = element_text(size = 14),  
+    axis.text.y = element_text(size = 14)   
+  )
+
+graph2
+
+# Save the graph
+# ggsave("CCPolicyGraphR.png", plot = graph2, width = 8, height = 6, units = "in", dpi = 300)
+
+
+```
+
+## SHARING 
+
+```{r, Ideology X Condition on Sharing, Country is Random}
+
+# Make sure sharing is a factor 
+
+dfAll$SHAREcc <- as.factor(dfAll$SHAREcc)
+
+# Without covariates 
+
+Share_All1 <- glmer(SHAREcc ~ cond_effects*ide_c + (1|Country), data = dfAll, family = binomial(link = logit))
+summary(Share_All1)
+
+# With covariates 
+
+Share_All2 <- glmer(SHAREcc ~ cond_effects*ide_c + gend_effects + Age + Edu + Income + (1|Country), data = dfAll, family = binomial(link = logit))
+summary(Share_All2)
+
+# Extract coefficients and make a table
+
+Share_All2_table <- summary(Share_All2)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Share_All2_table
+
+# Effect size conversion
+
+cond_d <- oddsratio_to_d(0.2622, log = TRUE)
+
+ide_d <- oddsratio_to_d(0.0062, log = TRUE)
+
+interaction_d <- oddsratio_to_d(-0.0012	, log = TRUE)
+
+cond_d
+ide_d
+interaction_d
+
+```
+
+```{r, Sharing graph}
+
+#Rename condition so that neater:
+dfAll$condName2[dfAll$condName == 'Control'] <- 'Control'
+dfAll$condName2[dfAll$condName == 'SystemJust'] <- 'System Justification'
+
+set_theme(theme_classic())
+
+Share_Graph <- glmer(SHAREcc ~ ide*condName2 + gend_effects + age_c + edu_c + income_c + (1|Country), data = dfAll, family = binomial(link = logit))
+summary(Share_Graph)
+
+graph3 <- plot_model(
+  Share_Graph, 
+  type = "eff", 
+  terms = c("ide", "condName2"), 
+  mdrt.values = 'meansd', 
+  title = "C. Social Media Sharing Intentions", 
+  show.data = TRUE, 
+  colors = c("darkmagenta", "cyan4"),
+  dot.size = .1,
+  axis.title = '',
+  axis.labels = 'Ideology',
+  legend.title = 'Condition',
+  line.size = .9,
+  ylim = c(50, 100),
+  # jitter=TRUE
+)
+
+graph3 <- graph3 +
+  labs(x = "") +
+  scale_x_continuous(limits = c(15, 87), breaks = c(20, 80), labels = c("Liberal/
+Left Wing", "Conservative/
+Right Wing")) +
+  theme(
+    plot.margin = unit(c(0, 4.5, 0, 4.5), "cm"),
+    legend.position = "none",  # Remove legend
+    plot.title = element_text(size = 14, face = "bold"),  # Adjust title size
+    axis.title.x = element_text(size = 14),  # Adjust x-axis label size
+    axis.title.y = element_text(size = 14),  # Adjust y-axis label size
+    axis.text.x = element_text(size = 14),  # Adjust x-axis tick label size
+    axis.text.y = element_text(size = 14)   # Adjust y-axis tick label size
+  )
+
+graph3
+
+
+# Save the graph
+# ggsave("CCShareGraphR.png", plot = graph3, width = 8, height = 6, units = "in", dpi = 300)
+
+```
+
+## ACTION ## 
+
+```{r, Ideology X Condition on Action, Country is Random}
+
+#Make sure WEPTcc is factor
+
+dfAll$WEPTcc <- as.factor(dfAll$WEPTcc)
+
+# Without covariates 
+
+Action_All1 <- clmm(WEPTcc ~ cond_effects*ide_c + (1|Country), data = dfAll, threshold = "equidistant",  doFit = TRUE)
+summary(Action_All1)
+
+# Add covariates
+
+Action_All2 <- clmm(WEPTcc ~ cond_effects*ide_c + gend_effects + Age + Edu + Income + (1|Country), data = dfAll, threshold = "equidistant",  doFit = TRUE)
+summary(Action_All2)
+
+# Extract coefficients and make a table
+Action_All2_table <- summary(Action_All2)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Action_All2_table
+
+```
