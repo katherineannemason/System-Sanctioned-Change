@@ -318,7 +318,7 @@ Action_Ide
 
 ```{r, Prepare belief and policy congruency data set}
 
-congruency_df <- read.csv('df180_Congruency.csv')
+congruency_df <- read.csv('Congruency.csv')
 
 # Make belief data set long 
 
