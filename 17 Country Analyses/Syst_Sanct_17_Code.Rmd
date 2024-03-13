@@ -1,0 +1,1206 @@
+---
+title: "Analyses Involving Sub-sample of 17 Countries"
+author: "Katherine Anne Mason"
+date: "2023-07-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, Load packages}
+
+library(readxl)
+library(writexl)
+library(lme4)
+library(nlme)
+library(ordinal)
+library(carData)
+library(car)
+library(lmerTest)
+library(tidyverse)
+library(lsmeans)
+library(stats)
+library(sjPlot)
+library(sjmisc)
+library(ggplot2)
+library(glmmTMB) 
+library(MASS)
+library(psych)
+library(ltm)
+library(Hmisc)
+library(broom)
+library(knitr)
+library(lmtest)
+library(tools)
+library(EMAtools)
+library(sjstats)
+library(effectsize)
+
+```
+
+```{r, Import and prepare data}
+
+# Import data sets
+
+df_17 <- read.csv("Syst_Sanct_17_Data.csv")
+
+# Make the belief data set for the full sample 
+
+df17_Belief <- pivot_longer(df_17, cols = c("Belief1", "Belief2", "Belief3", "Belief4"), names_to = "BeliefItem", values_to = "Belief")
+
+df17_Belief
+
+# Make the policy data set for the full sample
+
+df17_Policy <- pivot_longer(df_17, cols = c("Policy1", "Policy2", "Policy3", "Policy4", "Policy5", "Policy6", "Policy7", "Policy8", "Policy9"), names_to = "PolicyItem", values_to = "Policy")
+
+df17_Policy
+
+# Make sure US the reference country.
+
+df17_Belief$Country <- as.factor(df17_Belief$Country)
+df17_Policy$Country <- as.factor(df17_Policy$Country)
+df_17$Country <- as.factor(df_17$Country)
+
+df17_Belief$Country <- relevel(df17_Belief$Country, ref = 'USA')
+df17_Policy$Country <- relevel(df17_Policy$Country, ref = 'USA')
+df_17$Country <- relevel(df_17$Country, ref = 'USA')
+
+# Standardize belief and policy data sets
+
+# Belief 
+
+z_df17_Belief <- as.data.frame(scale(df17_Belief[, c("ide_c", "Age", "Edu", "Income","Belief")]), center = T)
+
+z_df17_Belief <- cbind(df17_Belief[, c("ResponseId", "Country", "BeliefItem", "cond_effects", "gend_effects", "Poland_E", "Sweden_E",	"Chile_E", "Netherlands_E",	"UK_E",	"Italy_E", "Nigeria_E",	"Germany_E", "France_E", "Japan_E",	"Russia_E",	"Israel_E",	"Brazil_E",	"Canada_E",	"Switzerland_E",	"Belgium_E"), drop = FALSE], as.data.frame(z_df17_Belief))
+
+z_df17_Belief
+
+# Policy
+
+z_df17_Policy <- as.data.frame(scale(df17_Policy[, c("ide_c", "Age", "Edu", "Income","Policy")]), center = T)
+
+z_df17_Policy <- cbind(df17_Policy[, c("ResponseId", "Country", "PolicyItem", "cond_effects", "gend_effects", "Poland_E", "Sweden_E",	"Chile_E", "Netherlands_E",	"UK_E",	"Italy_E", "Nigeria_E",	"Germany_E", "France_E", "Japan_E",	"Russia_E",	"Israel_E",	"Brazil_E",	"Canada_E",	"Switzerland_E",	"Belgium_E"), drop = FALSE], as.data.frame(z_df17_Policy))
+
+z_df17_Policy
+
+```
+
+### BELIEF IN CLIMATE CHANGE ###
+
+# BELIEF CONDITION X IDEOLOGY X COUNTRY
+
+```{r, Condition X Country X Ideology Interaction on Belief Omnibus Effects}
+
+# Make sure US the reference
+
+df17_Belief$Country <- relevel(df17_Belief$Country, ref = 'USA')
+
+# No covariates 
+
+Belief17_1 <- lmer(Belief ~ cond_effects*ide_c*Country + (1 | BeliefItem), data = df17_Belief)
+summary(Belief17_1)
+anova(Belief17_1) 
+
+# Add covariates.
+
+Belief17_2 <- lmer(Belief ~ cond_effects*Country*ide_c + gend_effects + Age + Edu + Income + (1 | BeliefItem), data = df17_Belief)
+summary(Belief17_2)
+anova(Belief17_2) # Reported in main text
+
+```
+
+```{r, Condition X Country X Ideology Interaction on Belief Effects Coding}
+
+# Simple effects coding, no covariates. 
+
+Belief17_3 <- lmer(Belief ~ 
+                        cond_effects*ide_c +
+                        cond_effects*Belgium_E +
+                        cond_effects*Brazil_E +
+                        cond_effects*Canada_E +
+                        cond_effects*Chile_E +
+                        cond_effects*France_E +
+                        cond_effects*Germany_E +
+                        cond_effects*Israel_E +
+                        cond_effects*Italy_E +
+                        cond_effects*Japan_E +
+                        cond_effects*Netherlands_E +
+                        cond_effects*Nigeria_E +
+                        cond_effects*Poland_E +
+                        cond_effects*Russia_E +
+                        cond_effects*Sweden_E +
+                        cond_effects*Switzerland_E +
+                        cond_effects*UK_E +
+                        cond_effects*ide_c +
+                        Belgium_E*ide_c +
+                        Brazil_E*ide_c +
+                        Canada_E*ide_c +
+                        Chile_E*ide_c +
+                        France_E*ide_c +
+                        Germany_E*ide_c +
+                        Israel_E*ide_c +
+                        Italy_E*ide_c +
+                        Japan_E*ide_c +
+                        Netherlands_E*ide_c +
+                        Nigeria_E*ide_c +
+                        Poland_E*ide_c +
+                        Russia_E*ide_c +
+                        Sweden_E*ide_c +
+                        Switzerland_E*ide_c +
+                        UK_E*ide_c +
+                        cond_effects*Belgium_E*ide_c +
+                        cond_effects*Brazil_E*ide_c +
+                        cond_effects*Canada_E*ide_c +
+                        cond_effects*Chile_E*ide_c +
+                        cond_effects*France_E*ide_c +
+                        cond_effects*Germany_E*ide_c +
+                        cond_effects*Israel_E*ide_c +
+                        cond_effects*Italy_E*ide_c +
+                        cond_effects*Japan_E*ide_c +
+                        cond_effects*Netherlands_E*ide_c +
+                        cond_effects*Nigeria_E*ide_c +
+                        cond_effects*Poland_E*ide_c +
+                        cond_effects*Russia_E*ide_c +
+                        cond_effects*Sweden_E*ide_c +
+                        cond_effects*Switzerland_E*ide_c +
+                        cond_effects*UK_E*ide_c 
+                        + (1 | BeliefItem), data = df17_Belief)
+
+summary(Belief17_3)
+
+# With covariates 
+
+Belief17_4 <- lmer(Belief ~ 
+                        cond_effects*ide_c +
+                        cond_effects*Belgium_E +
+                        cond_effects*Brazil_E +
+                        cond_effects*Canada_E +
+                        cond_effects*Chile_E +
+                        cond_effects*France_E +
+                        cond_effects*Germany_E +
+                        cond_effects*Israel_E +
+                        cond_effects*Italy_E +
+                        cond_effects*Japan_E +
+                        cond_effects*Netherlands_E +
+                        cond_effects*Nigeria_E +
+                        cond_effects*Poland_E +
+                        cond_effects*Russia_E +
+                        cond_effects*Sweden_E +
+                        cond_effects*Switzerland_E +
+                        cond_effects*UK_E +
+                        cond_effects*ide_c +
+                        Belgium_E*ide_c +
+                        Brazil_E*ide_c +
+                        Canada_E*ide_c +
+                        Chile_E*ide_c +
+                        France_E*ide_c +
+                        Germany_E*ide_c +
+                        Israel_E*ide_c +
+                        Italy_E*ide_c +
+                        Japan_E*ide_c +
+                        Netherlands_E*ide_c +
+                        Nigeria_E*ide_c +
+                        Poland_E*ide_c +
+                        Russia_E*ide_c +
+                        Sweden_E*ide_c +
+                        Switzerland_E*ide_c +
+                        UK_E*ide_c +
+                        cond_effects*Belgium_E*ide_c +
+                        cond_effects*Brazil_E*ide_c +
+                        cond_effects*Canada_E*ide_c +
+                        cond_effects*Chile_E*ide_c +
+                        cond_effects*France_E*ide_c +
+                        cond_effects*Germany_E*ide_c +
+                        cond_effects*Israel_E*ide_c +
+                        cond_effects*Italy_E*ide_c +
+                        cond_effects*Japan_E*ide_c +
+                        cond_effects*Netherlands_E*ide_c +
+                        cond_effects*Nigeria_E*ide_c +
+                        cond_effects*Poland_E*ide_c +
+                        cond_effects*Russia_E*ide_c +
+                        cond_effects*Sweden_E*ide_c +
+                        cond_effects*Switzerland_E*ide_c +
+                        cond_effects*UK_E*ide_c +
+                        gend_effects + Age + Edu + Income + (1 | BeliefItem), data = df17_Belief)
+
+summary(Belief17_4)
+
+# Extract coefficients
+
+Belief17_4_table <- summary(Belief17_4)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Belief17_4_table
+
+# Effect size conversion
+
+lme.dscore(Belief17_4, df17_Belief,"lme4")
+
+
+```
+
+# FUNCTION BELIEF
+
+```{r, Function, effect of condition on belief}
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Country reference level
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- lme(Belief ~ ide_c*cond_effects*Country + 
+                gend_effects + age_c + edu_c + income_c,
+                random = ~ 1 | BeliefItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(msMaxIter = 1000))
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed) 
+  result <- ci_frame[3, ]
+  
+  return(result)
+}
+
+# Data frame to store the results
+All_Estimates_Belief <- data.frame(
+  country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df17_Belief$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df17_Belief)
+  All_Estimates_Belief <- bind_rows(All_Estimates_Belief, data.frame(country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(All_Estimates_Belief) <- df17_Belief$country # not sure why this works
+
+All_Estimates_Belief
+
+# Export the table as a data set.
+# write.csv(All_Estimates_Belief, file = "All_Cond_Estimates_Belief.csv")
+
+```
+
+```{r, Function, effect of condition on belief among liberals}
+
+# Liberal model.
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Country reference level
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  Liberal_Model <- lme(Belief ~ ide_low*cond_effects*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | BeliefItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(msMaxIter = 1000))
+  
+  # Extract confidence intervals
+  ci_Lib <- intervals(Liberal_Model, which = "fixed")
+  ci_frame_Lib <- data.frame(ci_Lib$fixed) 
+  result_Lib <- ci_frame_Lib[3, ] 
+  
+  return(result_Lib)
+}
+
+# Data frame to store the results
+Lib_Belief <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df17_Belief$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df17_Belief)
+  Lib_Belief <- bind_rows(Lib_Belief, data.frame(Country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Lib_Belief) <- df17_Belief$country
+
+# Add a column labeled "ideology" and make all rows "liberal".
+Lib_Belief <- Lib_Belief %>%
+  mutate(Ideology = "Liberal") %>%
+  relocate(Ideology, .before = lower) 
+
+Lib_Belief
+
+```
+
+```{r, Function, effect of condition on belief among conservatives}
+
+# Conservative model.
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Country reference level
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  Conservative_Model <- lme(Belief ~ ide_high*cond_effects*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | BeliefItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(msMaxIter = 1000))
+  
+  # Extract confidence intervals
+  ci_Con <- intervals(Conservative_Model, which = "fixed")
+  ci_frame_Con <- data.frame(ci_Con$fixed) 
+  result_Con <- ci_frame_Con[3, ] 
+  
+  return(result_Con)
+}
+
+# Data frame to store the results
+Con_Belief <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df17_Belief$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df17_Belief)
+  Con_Belief <- bind_rows(Con_Belief, data.frame(Country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Con_Belief) <- df17_Belief$country
+
+# Add a column labeled "ideology" and make all rows "conservative".
+Con_Belief <- Con_Belief %>%
+  mutate(Ideology = "Conservative") %>%
+  relocate(Ideology, .before = lower) 
+
+Con_Belief
+
+```
+
+```{r, Combine the liberal and conservative tables together}
+
+# Combine the data sets 
+Lib_Con_Belief <- rbind(Lib_Belief, Con_Belief)
+Lib_Con_Belief
+
+Lib_Con_Belief <- Lib_Con_Belief %>% 
+  arrange(Country)
+
+Lib_Con_Belief
+
+# Export the table as a data set.
+# write.csv(Lib_Con_Belief, file = "Lib_Con_Belief.csv")
+
+```
+
+#### SUPPORT FOR CLIMATE POLICY ###
+
+# POLICY SUPPORT CONDITION X IDEOLOGY X COUNTRY
+
+```{r, Condition X Country Interaction on Policy Support Omnibus Effects}
+
+# No covariates
+
+Policy17_1 <- lmer(Policy ~ cond_effects*Country*ide_c + (1 | PolicyItem), data = df17_Policy)
+summary(Policy17_1)
+anova(Policy17_1)
+
+# Add covariates.
+
+Policy17_2 <- lmer(Policy ~ cond_effects*Country*ide_c + gend_effects + Age + Edu + Income + (1 | PolicyItem), data = df17_Policy)
+summary(Policy17_2)
+anova(Policy17_2)
+
+```
+
+```{r, Condition X Country Interaction on Policy Support Effects Coding}
+
+# No covariates. 
+
+Policy17_3 <- lmer(Policy ~ 
+                        cond_effects*ide_c +
+                        cond_effects*Belgium_E +
+                        cond_effects*Brazil_E +
+                        cond_effects*Canada_E +
+                        cond_effects*Chile_E +
+                        cond_effects*France_E +
+                        cond_effects*Germany_E +
+                        cond_effects*Israel_E +
+                        cond_effects*Italy_E +
+                        cond_effects*Japan_E +
+                        cond_effects*Netherlands_E +
+                        cond_effects*Nigeria_E +
+                        cond_effects*Poland_E +
+                        cond_effects*Russia_E +
+                        cond_effects*Sweden_E +
+                        cond_effects*Switzerland_E +
+                        cond_effects*UK_E +
+                        cond_effects*ide_c +
+                        Belgium_E*ide_c +
+                        Brazil_E*ide_c +
+                        Canada_E*ide_c +
+                        Chile_E*ide_c +
+                        France_E*ide_c +
+                        Germany_E*ide_c +
+                        Israel_E*ide_c +
+                        Italy_E*ide_c +
+                        Japan_E*ide_c +
+                        Netherlands_E*ide_c +
+                        Nigeria_E*ide_c +
+                        Poland_E*ide_c +
+                        Russia_E*ide_c +
+                        Sweden_E*ide_c +
+                        Switzerland_E*ide_c +
+                        UK_E*ide_c +
+                        cond_effects*Belgium_E*ide_c +
+                        cond_effects*Brazil_E*ide_c +
+                        cond_effects*Canada_E*ide_c +
+                        cond_effects*Chile_E*ide_c +
+                        cond_effects*France_E*ide_c +
+                        cond_effects*Germany_E*ide_c +
+                        cond_effects*Israel_E*ide_c +
+                        cond_effects*Italy_E*ide_c +
+                        cond_effects*Japan_E*ide_c +
+                        cond_effects*Netherlands_E*ide_c +
+                        cond_effects*Nigeria_E*ide_c +
+                        cond_effects*Poland_E*ide_c +
+                        cond_effects*Russia_E*ide_c +
+                        cond_effects*Sweden_E*ide_c +
+                        cond_effects*Switzerland_E*ide_c +
+                        cond_effects*UK_E*ide_c 
+                        + (1 | PolicyItem), data = df17_Policy)
+
+summary(Policy17_3)
+
+# With covariates 
+
+Policy17_4 <- lmer(Policy ~ 
+                        cond_effects*ide_c +
+                        cond_effects*Belgium_E +
+                        cond_effects*Brazil_E +
+                        cond_effects*Canada_E +
+                        cond_effects*Chile_E +
+                        cond_effects*France_E +
+                        cond_effects*Germany_E +
+                        cond_effects*Israel_E +
+                        cond_effects*Italy_E +
+                        cond_effects*Japan_E +
+                        cond_effects*Netherlands_E +
+                        cond_effects*Nigeria_E +
+                        cond_effects*Poland_E +
+                        cond_effects*Russia_E +
+                        cond_effects*Sweden_E +
+                        cond_effects*Switzerland_E +
+                        cond_effects*UK_E +
+                        cond_effects*ide_c +
+                        Belgium_E*ide_c +
+                        Brazil_E*ide_c +
+                        Canada_E*ide_c +
+                        Chile_E*ide_c +
+                        France_E*ide_c +
+                        Germany_E*ide_c +
+                        Israel_E*ide_c +
+                        Italy_E*ide_c +
+                        Japan_E*ide_c +
+                        Netherlands_E*ide_c +
+                        Nigeria_E*ide_c +
+                        Poland_E*ide_c +
+                        Russia_E*ide_c +
+                        Sweden_E*ide_c +
+                        Switzerland_E*ide_c +
+                        UK_E*ide_c +
+                        cond_effects*Belgium_E*ide_c +
+                        cond_effects*Brazil_E*ide_c +
+                        cond_effects*Canada_E*ide_c +
+                        cond_effects*Chile_E*ide_c +
+                        cond_effects*France_E*ide_c +
+                        cond_effects*Germany_E*ide_c +
+                        cond_effects*Israel_E*ide_c +
+                        cond_effects*Italy_E*ide_c +
+                        cond_effects*Japan_E*ide_c +
+                        cond_effects*Netherlands_E*ide_c +
+                        cond_effects*Nigeria_E*ide_c +
+                        cond_effects*Poland_E*ide_c +
+                        cond_effects*Russia_E*ide_c +
+                        cond_effects*Sweden_E*ide_c +
+                        cond_effects*Switzerland_E*ide_c +
+                        cond_effects*UK_E*ide_c +
+                        gend_effects + Age + Edu + Income + (1 | PolicyItem), data = df17_Policy)
+
+print(summary(Policy17_4))
+
+# Extract coefficients
+
+Policy17_4_table <- summary(Policy17_4)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Policy17_4_table
+
+# Effect size conversion
+
+lme.dscore(Policy17_4, df17_Policy,"lme4")
+
+
+```
+
+
+# FUNCTION POLICY SUPPORT
+
+```{r, Function, effect of condition on policy support}
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Country reference level
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the  model
+  model <- lme(Policy ~ ide_c*cond_effects*Country + 
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | PolicyItem,
+                data = data,
+                method = "REML",
+                na.action = na.omit,
+                control = lmeControl(msMaxIter = 1000))
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed) 
+  result <- ci_frame[3, ] 
+  
+  return(result)
+}
+
+# Create a data frame to store the results
+All_Estimates_Policy <- data.frame(
+  country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df17_Policy$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df17_Policy)
+  All_Estimates_Policy <- bind_rows(All_Estimates_Policy, data.frame(country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(All_Estimates_Policy) <- df17_Policy$country
+
+All_Estimates_Policy
+
+# Export the table as a data set.
+# write.csv(All_Estimates_Policy, file = "All_Cond_Estimates_Policy.csv")
+
+```
+
+```{r, Function, effect of condition on policy support among liberals}
+
+# Trouble converging, make new data set with only variables that are needed
+new_df <- df17_Policy[, c("ide_low", "cond_effects", "Country", "Policy", "PolicyItem", "gend_effects", "Age", "Edu", "Income")]
+
+# Re-define liberal
+new_df$ide_low <- df17_Policy$ide_c- (-30)
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Country reference level
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- lme(Policy ~ ide_low*cond_effects*Country +
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | PolicyItem,
+                data = data, 
+                method = "REML",
+                na.action = na.omit,
+                # control = lmeControl(msMaxIter = 1000))
+                control = lmeControl(singular.ok=TRUE)) # Use if not converging 
+  
+  # Extract confidence intervals
+  ci <- intervals(model, which = "fixed")
+  ci_frame <- data.frame(ci$fixed) # Make into a data frame
+  result <- ci_frame[3, ] # Extract only the effect of condition
+  
+  return(result)
+}
+
+# Create a data frame to store the results
+Lib_Policy <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(new_df$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, new_df)
+  Lib_Policy <- bind_rows(Lib_Policy, data.frame(Country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Lib_Policy) <- new_df$country
+
+# Add a column labeled "ideology" and make all rows "liberal".
+Lib_Policy <- Lib_Policy %>%
+  mutate(Ideology = "Liberal") %>%
+  relocate(Ideology, .before = lower)
+
+Lib_Policy
+
+```
+
+```{r, Function, effect of condition on policy support among conservatives}
+
+# Conservative model.
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  # Set the reference level to the current country
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the  model
+  Conservative_Model <- lme(Policy ~ ide_high*cond_effects*Country +
+                gend_effects + Age + Edu + Income,
+                random = ~ 1 | PolicyItem,
+                data = data, 
+                method = "REML",
+                na.action = na.omit,
+                # control = lmeControl(msMaxIter = 1000))
+                control = lmeControl(singular.ok=TRUE)) # Use if not converging 
+  
+  # Extract confidence intervals
+  
+  ci_Con <- intervals(Conservative_Model, which = "fixed")
+  ci_frame_Con <- data.frame(ci_Con$fixed) 
+  result_Con <- ci_frame_Con[3, ] 
+  
+  return(result_Con)
+}
+
+# Create a data frame to store the results
+Con_Policy <- data.frame(
+  Country = character(0),
+  lower = numeric(0),
+  est. = numeric(0),
+  upper = numeric(0)
+)
+
+# List of country names (replace with your 14 country names)
+country_names <- unique(df17_Policy$Country)
+
+# Loop through each country and compute estimates and confidence intervals
+for (country_name in country_names) {
+  ci <- fit_and_extract_ci(country_name, df17_Policy)
+  Con_Policy <- bind_rows(Con_Policy, data.frame(Country = country_name, ci))
+}
+
+# Make country the index variable
+rownames(Con_Policy) <- df17_Policy$country
+
+# Add a column labeled "ideology" and make all rows "conservative".
+Con_Policy <- Con_Policy %>%
+  mutate(Ideology = "Conservative") %>%
+  relocate(Ideology, .before = lower) # Move ideology variable
+
+Con_Policy
+
+```
+
+```{r, Combine the liberal and conservative tables together}
+
+# Combine the data sets 
+Lib_Con_Policy <- rbind(Lib_Policy, Con_Policy)
+Lib_Con_Policy
+
+# Have countries next to one another.
+Lib_Con_Policy <- Lib_Con_Policy %>% 
+  arrange(Country)
+
+Lib_Con_Policy
+
+# Export the table as a data set.
+# write.csv(Lib_Con_Policy, file = "Lib_Con_Policy.csv")
+
+```
+
+# SHARING INTENTIONS
+
+# SHARING CONDITION X IDEOLOGY X COUNTRY
+
+```{r, Condition X Country Interaction on Sharing Omnibus Effects}
+
+# Find in SAS
+
+```
+
+```{r, Condition X Country Interaction on Sharing Effects Coded}
+
+# Effects coding, no covariates. 
+
+Share17_3 <- glm(SHAREcc ~ 
+                        cond_effects*ide_c +
+                        cond_effects*Belgium_E +
+                        cond_effects*Brazil_E +
+                        cond_effects*Canada_E +
+                        cond_effects*Chile_E +
+                        cond_effects*France_E +
+                        cond_effects*Germany_E +
+                        cond_effects*Israel_E +
+                        cond_effects*Italy_E +
+                        cond_effects*Japan_E +
+                        cond_effects*Netherlands_E +
+                        cond_effects*Nigeria_E +
+                        cond_effects*Poland_E +
+                        cond_effects*Russia_E +
+                        cond_effects*Sweden_E +
+                        cond_effects*Switzerland_E +
+                        cond_effects*UK_E +
+                        cond_effects*ide_c +
+                        Belgium_E*ide_c +
+                        Brazil_E*ide_c +
+                        Canada_E*ide_c +
+                        Chile_E*ide_c +
+                        France_E*ide_c +
+                        Germany_E*ide_c +
+                        Israel_E*ide_c +
+                        Italy_E*ide_c +
+                        Japan_E*ide_c +
+                        Netherlands_E*ide_c +
+                        Nigeria_E*ide_c +
+                        Poland_E*ide_c +
+                        Russia_E*ide_c +
+                        Sweden_E*ide_c +
+                        Switzerland_E*ide_c +
+                        UK_E*ide_c +
+                        cond_effects*Belgium_E*ide_c +
+                        cond_effects*Brazil_E*ide_c +
+                        cond_effects*Canada_E*ide_c +
+                        cond_effects*Chile_E*ide_c +
+                        cond_effects*France_E*ide_c +
+                        cond_effects*Germany_E*ide_c +
+                        cond_effects*Israel_E*ide_c +
+                        cond_effects*Italy_E*ide_c +
+                        cond_effects*Japan_E*ide_c +
+                        cond_effects*Netherlands_E*ide_c +
+                        cond_effects*Nigeria_E*ide_c +
+                        cond_effects*Poland_E*ide_c +
+                        cond_effects*Russia_E*ide_c +
+                        cond_effects*Sweden_E*ide_c +
+                        cond_effects*Switzerland_E*ide_c +
+                        cond_effects*UK_E*ide_c, 
+                        data = df_17, family = binomial(link = logit))
+
+summary(Share17_3)
+
+# With covariates 
+
+Share17_4 <- glm(SHAREcc ~ 
+                        cond_effects*ide_c +
+                        cond_effects*Belgium_E +
+                        cond_effects*Brazil_E +
+                        cond_effects*Canada_E +
+                        cond_effects*Chile_E +
+                        cond_effects*France_E +
+                        cond_effects*Germany_E +
+                        cond_effects*Israel_E +
+                        cond_effects*Italy_E +
+                        cond_effects*Japan_E +
+                        cond_effects*Netherlands_E +
+                        cond_effects*Nigeria_E +
+                        cond_effects*Poland_E +
+                        cond_effects*Russia_E +
+                        cond_effects*Sweden_E +
+                        cond_effects*Switzerland_E +
+                        cond_effects*UK_E +
+                        cond_effects*ide_c +
+                        Belgium_E*ide_c +
+                        Brazil_E*ide_c +
+                        Canada_E*ide_c +
+                        Chile_E*ide_c +
+                        France_E*ide_c +
+                        Germany_E*ide_c +
+                        Israel_E*ide_c +
+                        Italy_E*ide_c +
+                        Japan_E*ide_c +
+                        Netherlands_E*ide_c +
+                        Nigeria_E*ide_c +
+                        Poland_E*ide_c +
+                        Russia_E*ide_c +
+                        Sweden_E*ide_c +
+                        Switzerland_E*ide_c +
+                        UK_E*ide_c +
+                        cond_effects*Belgium_E*ide_c +
+                        cond_effects*Brazil_E*ide_c +
+                        cond_effects*Canada_E*ide_c +
+                        cond_effects*Chile_E*ide_c +
+                        cond_effects*France_E*ide_c +
+                        cond_effects*Germany_E*ide_c +
+                        cond_effects*Israel_E*ide_c +
+                        cond_effects*Italy_E*ide_c +
+                        cond_effects*Japan_E*ide_c +
+                        cond_effects*Netherlands_E*ide_c +
+                        cond_effects*Nigeria_E*ide_c +
+                        cond_effects*Poland_E*ide_c +
+                        cond_effects*Russia_E*ide_c +
+                        cond_effects*Sweden_E*ide_c +
+                        cond_effects*Switzerland_E*ide_c +
+                        cond_effects*UK_E*ide_c +
+                        gend_effects + Age + Edu + Income,
+                        data = df_17, family = binomial(link = logit))
+
+summary(Share17_4)
+
+
+# Extract coefficients
+
+Share17_4_table <- summary(Share17_4)$coefficients %>%
+                      round(., 4) %>%
+                      kable()
+
+Share17_4_table
+
+# Effect size conversion
+
+cond_d <- oddsratio_to_d(0.27275, log = TRUE)
+
+ide_d <- oddsratio_to_d(0.00652, log = TRUE)
+
+cond_d
+ide_d
+
+```
+
+```{r, Function, effect of condition on sharing}
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Country reference level
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the linear mixed-effects model
+  model <- glm(SHAREcc ~ cond_effects*Country*ide_c + gend_effects + Age + Edu + 
+                 Income, data = data, family = binomial(link = logit))
+  
+  # Extract estimates
+  est <- coef(model)["cond_effects"]
+  
+  # Extract confidence intervals
+  ci <- confint(model, "cond_effects")
+  
+  # Transform confidence intervals into a data frame and rename columns
+  ci <- as.data.frame(t(ci))
+  colnames(ci) <- c("lower", "upper")
+  
+  return(list(est = est, ci = ci))
+}
+
+# Create a data frame to store the results
+All_Estimates_Share <- data.frame(
+  country = character(0),
+  lower = numeric(0),
+  est = numeric(0),
+  upper = numeric(0)
+)
+
+country_names <- unique(df_17$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  results <- fit_and_extract_ci(country_name, df_17)
+  est <- results$est
+  ci <- results$ci
+  All_Estimates_Share <- bind_rows(All_Estimates_Share, data.frame(country = country_name, est, ci))
+}
+
+All_Estimates_Share
+
+# Make country the index variable
+rownames(All_Estimates_Share) <- df_17$country
+
+All_Estimates_Share
+
+# Export the table as a data set.
+# write.csv(All_Estimates_Share, file = "All_Cond_Estimates_Share.csv")
+
+```
+
+# CLIMATE ACTION
+
+```{r, Ideology X Condition on Climate Action}
+
+#Make sure WEPTcc is factor.
+df_17$WEPTcc <- as.factor(df_17$WEPTcc)
+
+# Without covariates 
+
+Action17_1 <- clmm(WEPTcc ~ cond_effects*ide_c + (1|Country), data = df_17, threshold = "equidistant",  doFit = TRUE)
+summary(Action17_1)
+
+# Add covariates
+
+Action17_2 <- clmm(WEPTcc ~ cond_effects*ide_c + gend_effects + Age + Edu + Income + (1|Country), data = df_17, threshold = "equidistant",  doFit = TRUE)
+summary(Action17_2)
+
+```
+
+#CLIMATE ACTION CONDITION X IDEOLOGY X COUNTRY
+
+```{r, Condition X Country Interaction on Climate Action Omnibus Effects}
+
+# Find in SAS
+
+```
+
+```{r, Condition X Country Interaction on Climate Action Effects Coded}
+
+# Effects coding, no covariates. 
+
+df_17$WEPTcc <- as.factor(df_17$WEPTcc)
+
+Action17_1 <- polr(WEPTcc ~ 
+                        cond_effects*ide_c +
+                        cond_effects*Belgium_E +
+                        cond_effects*Brazil_E +
+                        cond_effects*Canada_E +
+                        cond_effects*Chile_E +
+                        cond_effects*France_E +
+                        cond_effects*Germany_E +
+                        cond_effects*Israel_E +
+                        cond_effects*Italy_E +
+                        cond_effects*Japan_E +
+                        cond_effects*Netherlands_E +
+                        cond_effects*Nigeria_E +
+                        cond_effects*Poland_E +
+                        cond_effects*Russia_E +
+                        cond_effects*Sweden_E +
+                        cond_effects*Switzerland_E +
+                        cond_effects*UK_E +
+                        cond_effects*ide_c +
+                        Belgium_E*ide_c +
+                        Brazil_E*ide_c +
+                        Canada_E*ide_c +
+                        Chile_E*ide_c +
+                        France_E*ide_c +
+                        Germany_E*ide_c +
+                        Israel_E*ide_c +
+                        Italy_E*ide_c +
+                        Japan_E*ide_c +
+                        Netherlands_E*ide_c +
+                        Nigeria_E*ide_c +
+                        Poland_E*ide_c +
+                        Russia_E*ide_c +
+                        Sweden_E*ide_c +
+                        Switzerland_E*ide_c +
+                        UK_E*ide_c +
+                        cond_effects*Belgium_E*ide_c +
+                        cond_effects*Brazil_E*ide_c +
+                        cond_effects*Canada_E*ide_c +
+                        cond_effects*Chile_E*ide_c +
+                        cond_effects*France_E*ide_c +
+                        cond_effects*Germany_E*ide_c +
+                        cond_effects*Israel_E*ide_c +
+                        cond_effects*Italy_E*ide_c +
+                        cond_effects*Japan_E*ide_c +
+                        cond_effects*Netherlands_E*ide_c +
+                        cond_effects*Nigeria_E*ide_c +
+                        cond_effects*Poland_E*ide_c +
+                        cond_effects*Russia_E*ide_c +
+                        cond_effects*Sweden_E*ide_c +
+                        cond_effects*Switzerland_E*ide_c +
+                        cond_effects*UK_E*ide_c, 
+                        data = df_17, Hess=TRUE)
+
+summary(Action17_1)
+
+# Calculate p-values 
+
+# Store regression output as a table
+Action17_1_Table <- coef(summary(Action17_1))
+Action17_1_Table
+
+# Calculate and store p values
+p3 <- pnorm(abs(Action17_1_Table[, "t value"]), lower.tail = FALSE) * 2
+
+# Combine table
+Action17_1_Table <- cbind(Action17_1_Table, "p value" = p3)
+Action17_1_Table
+
+# With covariates 
+
+Action17_2 <- polr(WEPTcc ~ 
+                        cond_effects*ide_c +
+                        cond_effects*Belgium_E +
+                        cond_effects*Brazil_E +
+                        cond_effects*Canada_E +
+                        cond_effects*Chile_E +
+                        cond_effects*France_E +
+                        cond_effects*Germany_E +
+                        cond_effects*Israel_E +
+                        cond_effects*Italy_E +
+                        cond_effects*Japan_E +
+                        cond_effects*Netherlands_E +
+                        cond_effects*Nigeria_E +
+                        cond_effects*Poland_E +
+                        cond_effects*Russia_E +
+                        cond_effects*Sweden_E +
+                        cond_effects*Switzerland_E +
+                        cond_effects*UK_E +
+                        cond_effects*ide_c +
+                        Belgium_E*ide_c +
+                        Brazil_E*ide_c +
+                        Canada_E*ide_c +
+                        Chile_E*ide_c +
+                        France_E*ide_c +
+                        Germany_E*ide_c +
+                        Israel_E*ide_c +
+                        Italy_E*ide_c +
+                        Japan_E*ide_c +
+                        Netherlands_E*ide_c +
+                        Nigeria_E*ide_c +
+                        Poland_E*ide_c +
+                        Russia_E*ide_c +
+                        Sweden_E*ide_c +
+                        Switzerland_E*ide_c +
+                        UK_E*ide_c +
+                        cond_effects*Belgium_E*ide_c +
+                        cond_effects*Brazil_E*ide_c +
+                        cond_effects*Canada_E*ide_c +
+                        cond_effects*Chile_E*ide_c +
+                        cond_effects*France_E*ide_c +
+                        cond_effects*Germany_E*ide_c +
+                        cond_effects*Israel_E*ide_c +
+                        cond_effects*Italy_E*ide_c +
+                        cond_effects*Japan_E*ide_c +
+                        cond_effects*Netherlands_E*ide_c +
+                        cond_effects*Nigeria_E*ide_c +
+                        cond_effects*Poland_E*ide_c +
+                        cond_effects*Russia_E*ide_c +
+                        cond_effects*Sweden_E*ide_c +
+                        cond_effects*Switzerland_E*ide_c +
+                        cond_effects*UK_E*ide_c +
+                        gend_effects + Age + Edu + Income,
+                        data = df_17,  Hess=TRUE)
+
+summary(Action17_2)
+
+# Calculate p-values 
+
+# Store regression output as a table
+Action17_2_Table <- coef(summary(Action17_2))
+Action17_2_Table
+
+# Calculate and store p values
+p4 <- pnorm(abs(Action17_2_Table[, "t value"]), lower.tail = FALSE) * 2
+
+# Combine table
+Action17_2_Table <- cbind(Action17_2_Table, "p value" = p4)
+Action17_2_Table
+
+
+```
+
+```{r, Function, effect of condition on action}
+
+# Define a function 
+fit_and_extract_ci <- function(country_name, data) {
+  
+  # Country reference level
+  data$Country <- relevel(data$Country, ref = country_name)
+  
+  # Fit the model
+  model <- polr(WEPTcc ~ cond_effects*ide_c*Country + Age + Edu + Income, data = data, Hess=TRUE)
+  
+  # Get the p-values
+  
+  # Store table
+  Model_Table <- coef(summary(model))
+
+  # Calculate and store p values
+  p <- pnorm(abs(Model_Table[, "t value"]), lower.tail = FALSE) * 2
+
+  # Combine table with p-value
+  Action <- cbind(Model_Table, "p value" = p)
+  
+  # Extract estimates
+  est <- coef(model)["cond_effects"]
+  
+  # Extract confidence intervals
+  ci <- confint(model, "cond_effects")
+  
+  # Transform confidence intervals into a data frame and rename columns
+  ci <- as.data.frame(t(ci))
+  colnames(ci) <- c("lower", "upper")
+  
+  return(list(est = est, ci = ci))
+}
+
+# Create a data frame to store the results
+All_Estimates_Action <- data.frame(
+  country = character(0),
+  lower = numeric(0),
+  est = numeric(0),
+  upper = numeric(0)
+)
+
+# List of country names (replace with your 14 country names)
+country_names <- unique(df_17$Country)
+
+# Loop through each country and compute estimates and CIs
+for (country_name in country_names) {
+  results <- fit_and_extract_ci(country_name, df_17)
+  est <- results$est
+  ci <- results$ci
+  All_Estimates_Action <- bind_rows(All_Estimates_Action, data.frame(country = country_name, est, ci))
+} 
+
+# Print the data frame with all estimates and confidence intervals
+print(All_Estimates_Action)
+
+# Make country the index variable
+rownames(All_Estimates_Action) <- df_17$country
+
+All_Estimates_Action
+
+# Export the table as a data set.
+# write.csv(All_Estimates_Action, file = "All_Cond_Estimates_Action")
+
+```
