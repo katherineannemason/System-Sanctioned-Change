@@ -1,0 +1,483 @@
+---
+title: "System Sanction Change Data Preparation"
+author: "Katherine Anne Mason"
+date: "2024-03-07"
+output: html_document
+---
+
+```{r, Load packages}
+
+library(tidyverse)
+library(readxl)
+library(writexl)
+library(openxlsx)
+library(psych)
+library(ltm)
+library(Hmisc)
+
+```
+
+```{r, Prepare the 63 country data set}
+
+# Import data set
+
+dfAll <- read.csv("data63_ALL_CONDS.csv")
+dfAll
+
+dfAll
+
+# Drop conditions except for SJ and control.
+
+dfAll <- dfAll[dfAll$condName %in% c("Control", "SystemJust"), ]
+
+dfAll
+
+# Ideology, age, education, and income
+
+dfAll$ide <- (dfAll$Politics2_1 + dfAll$Politics2_9)/2
+
+# Make 0 = moderate
+dfAll$ide_c <- dfAll$ide - 50
+
+# Center age, education, and income.
+mean(dfAll$Age, na.rm = TRUE)
+dfAll$age_c <- dfAll$Age - 39.13618
+mean(dfAll$age_c, na.rm = TRUE) 
+
+mean(dfAll$Income, na.rm = TRUE)
+dfAll$income_c <- dfAll$Income - 4.205146
+mean(dfAll$income_c, na.rm = TRUE)
+
+mean(dfAll$Edu, na.rm = TRUE)
+dfAll$edu_c <- dfAll$Edu - 2.854966
+mean(dfAll$edu_c, na.rm = TRUE) 
+
+# Liberal and conservative for simple effects.
+dfAll$ide_low <- dfAll$ide_c - (-30)
+dfAll$ide_high <- dfAll$ide_c - (30)
+
+# Gender
+
+table(dfAll$Gender)
+
+# Make gender binary 
+
+dfAll$GenderBin<- ifelse(dfAll$Gender %in% c(1, 2), dfAll$Gender, NA)
+
+# Make gender  0,1 
+
+dfAll$GenderBin <- dfAll$GenderBin - 1
+
+table(dfAll$GenderBin)
+
+# Simple effects code gender
+
+dfAll$gend_effects[dfAll$GenderBin == '0'] <- -.5
+dfAll$gend_effects[dfAll$GenderBin == '1'] <- .5
+dfAll$gend_effects <- as.numeric(dfAll$gend_effects)
+mean(dfAll$gend_effects, na.rm=TRUE)
+
+# Effects code condition
+
+dfAll$cond_effects[dfAll$condName == 'Control'] <- -.5
+dfAll$cond_effects[dfAll$condName == 'SystemJust'] <- .5
+dfAll$cond_effects <- as.numeric(dfAll$cond_effects)
+table(dfAll$cond_effect)
+
+# Capitalize country names.
+
+dfAll$Country <- str_to_title(dfAll$Country)
+
+# Fix other country names
+
+dfAll$Country <- ifelse(dfAll$Country == "Usa", "USA", dfAll$Country)
+dfAll$Country <- ifelse(dfAll$Country == "Uk", "UK", dfAll$Country)
+dfAll$Country <- ifelse(dfAll$Country == "Unitedarabemirates", "UAE", dfAll$Country)
+dfAll$Country <- ifelse(dfAll$Country == "Srilanka", "Sri Lanka", dfAll$Country)
+dfAll$Country <- ifelse(dfAll$Country == "Northmacedonia", "North Macedonia", dfAll$Country)
+dfAll$Country <- ifelse(dfAll$Country == "Newzealand", "New Zealand", dfAll$Country)
+dfAll$Country <- ifelse(dfAll$Country == "Saudiarabia", "Saudi Arabia", dfAll$Country)
+dfAll$Country <- ifelse(dfAll$Country == "Southafrica", "South Africa", dfAll$Country)
+dfAll$Country <- ifelse(dfAll$Country == "Southkorea", "South Korea", dfAll$Country)
+
+unique(dfAll$Country)
+length(unique(dfAll$Country))
+
+```
+
+```{r, Descriptives for 63 country data set}
+
+# Mean, SD, and alpha for belief
+
+dfAll$belief_avg <- (dfAll$Belief1 + dfAll$Belief2 + dfAll$Belief3 + dfAll$Belief4)/4
+mean(dfAll$belief_avg, na.rm = TRUE)
+sd(dfAll$belief_avg, na.rm = TRUE)
+
+belief_scale <- dfAll[, c("Belief1", "Belief2", "Belief3", "Belief4")]
+belief_scale
+
+cronbach.alpha(belief_scale, na.rm = TRUE)
+
+# Mean, SD, and alpha for policy
+
+dfAll$policy_avg <- (dfAll$Policy1 + dfAll$Policy2 + dfAll$Policy3 + dfAll$Policy4 + dfAll$Policy5 + dfAll$Policy6 + dfAll$Policy7 + dfAll$Policy8 + dfAll$Policy9)/9
+mean(dfAll$policy_avg, na.rm = TRUE)
+sd(dfAll$policy_avg, na.rm = TRUE)
+
+policy_scale <- dfAll[, c("Policy1", "Policy2", "Policy3", "Policy4", "Policy5", "Policy6", "Policy7", "Policy8", "Policy9")]
+policy_scale
+
+cronbach.alpha(policy_scale, na.rm = TRUE)
+
+# Mean and SD for sharing
+
+dfAll$SHAREcc <- as.numeric(dfAll$SHAREcc)
+
+mean(dfAll$SHAREcc, na.rm = TRUE)
+sd(dfAll$SHAREcc, na.rm = TRUE)
+
+# Mean and SD for WEPT
+
+dfAll$WEPTcc <- as.numeric(dfAll$WEPTcc)
+
+mean(dfAll$WEPTcc, na.rm = TRUE)
+sd(dfAll$WEPTcc, na.rm = TRUE)
+
+
+## Demographics ##
+
+table(dfAll$Gender)
+
+# Ideology
+
+mean(dfAll$ide, na.rm = TRUE)
+sd(dfAll$ide, na.rm = TRUE)
+
+# Age
+mean(dfAll$Age, na.rm = TRUE)
+sd(dfAll$Age, na.rm = TRUE)
+
+# Income
+mean(dfAll$Income, na.rm = TRUE)
+sd(dfAll$Income, na.rm = TRUE)
+
+# Education
+
+mean(dfAll$Edu, na.rm = TRUE)
+
+sd(dfAll$Edu, na.rm = TRUE)
+
+# Correlations
+
+corrs <- data.frame(
+  dfAll$cond_effects,
+  dfAll$belief_avg,
+  dfAll$policy_avg,
+  dfAll$SHAREcc,
+  dfAll$WEPTcc,
+  dfAll$ide,
+  dfAll$GenderBin,
+  dfAll$Age,
+  dfAll$Income,
+  dfAll$Edu
+)
+
+rcorr(as.matrix(corrs),type="pearson")
+
+```
+
+```{r, Export 63 country data sets}
+
+# Export dfAll, as it will be used for sharing and action analyses.
+
+# write.csv(dfAll, file = "Syst_Sanct_63_Data.csv", row.names = TRUE)
+# 
+# write.xlsx(dfAll, file = "Syst_Sanct_63_Data.xlsx", rowNames = TRUE)
+
+
+```
+
+```{r, Prepare 17 country data sets}
+
+# 17 countries with at least n=180
+
+# Define a vector of countries to filter
+countries_to_keep <- as.factor(c("USA", "Poland", "Sweden", "Chile", "Netherlands", "UK", "Italy", "Nigeria", "Germany", "France", "Japan", "Russia", "Israel", "Brazil", "Canada", "Switzerland", "Belgium"))
+
+# Subset the data frame to include only rows where 'Country' is in the list of countries to keep
+df_17 <- subset(dfAll, Country %in% countries_to_keep)
+
+df_17
+
+unique(df_17$Country)
+length(unique(df_17$Country))
+
+# Simple effects code country
+
+# Convert "Country" to a factor variable
+df_17$Country <- factor(df_17$Country)
+
+# Make USA the reference
+df_17$Country <- relevel(df_17$Country, ref = "USA")
+countries_to_keep <- relevel(countries_to_keep, ref = "USA")
+
+# Loop through new countries and create effects coding
+for (country in countries_to_keep) {
+  effect_var <- paste0(country, "_E")
+  df_17[[effect_var]] <- ifelse(df_17$Country == country, 16/17, -1/17)
+  mean_val <- mean(df_17[[effect_var]], na.rm = TRUE)
+  cat(country, "Effect:", mean_val, "\n")
+}
+
+# Create a new number ID variable (for congruency variable later)
+
+df_17$ID <- seq_len(nrow(df_17))
+
+df_17
+
+```
+
+```{r, Descriptives for 17 country data set}
+
+## Demographics ##
+
+table(df_17$Gender)
+
+# Age
+mean(df_17$Age, na.rm = TRUE)
+sd(df_17$Age, na.rm = TRUE)
+
+```
+
+```{r, Export 17 country data sets}
+
+# Export df_17, as it will be used for sharing and action analyses.
+
+# write.csv(df_17, file = "Syst_Sanct_17_Data.csv", row.names = TRUE)
+# 
+# write.xlsx(df_17, file = "Syst_Sanct_17_Data.xlsx", rowNames = TRUE)
+
+```
+
+```{r, Prepare the USA data set}
+
+df_USA <- dfAll[dfAll$Country == "USA", ]
+
+```
+
+```{r, Descriptives for USA data set}
+
+## Descriptive ##
+
+# Gender
+ 
+table(df_USA$Gender)
+
+# Age
+
+mean(df_USA$Age, na.rm = TRUE)
+sd(df_USA$Age, na.rm = TRUE)
+
+```
+
+```{r, Export USA data sets}
+
+# Export df_USA, as it will be used for sharing and action analyses.
+
+write.csv(df_USA, file = "Syst_Sanct_USA_Data.csv", row.names = TRUE)
+
+```
+
+#### PREPARE DATA SETS FOR SUPPLEMENTARY ANALYSES ####
+
+# CONGRUENCY
+
+```{r, Make congruency variable}
+
+# Congruence measure 
+# 1 = congruent 0 = incongruent 
+
+# Mean split ideology 
+
+df_17$ide_Bin[df_17$ide_c < 0] <- 0 # Liberal
+df_17$ide_Bin[df_17$ide_c > 0] <- 1 # Conservative
+
+df_17$ide_Bin
+
+######## Coding countries with power shifts first ########
+
+# Sweden had a shift in Oct 18 2022 from left to right
+
+# Start date: 2022-12-06 
+# End data: 2022-12-24 
+
+# All data collected in Sweden happened when a right government was in power.
+
+df_Sweden <- df_17 %>%
+  filter(Country == "Sweden") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 1, 1, 0)) # If right, then congruent
+df_Sweden
+
+############ 
+
+# Brazil had a shift in Jan 1 2023 from right to left
+
+# Start date: 2022-12-06 - congruent if Ps were right
+# End data: 2023-01-08 - congruent if Ps were left 
+
+# 1032 - 1207 was before 
+# 1208 - 1242 was after 
+
+#Create power shift variable 
+
+df_17$PowerShift <- ifelse(df_17$ID >= 1032 & df_17$ID <= 1207, "Before",
+                            ifelse(df_17$ID >= 1208 & df_17$ID <= 1242, "After", NA))
+
+df_Brazil <- df_17 %>%
+  filter(Country == "Brazil") %>%  
+  mutate(Congruence = ifelse(PowerShift == "Before" & ide_Bin == 1, 1, # Congruent if right and before
+                            ifelse(PowerShift == "After" & ide_Bin == 0, 1, 0))) # Congruent if left and after
+df_Brazil
+
+table(df_Brazil$PowerShift)
+
+# After Before 
+#   35    176 
+
+# Get rid of power shift variable
+
+############ 
+
+# Switzerland had a shift in Jan 1 2023 from right to left
+
+# Start date: 11.16.2022 10:37
+# End date: 2023-01-06 
+
+# 4653 - 4740, 4818 - 4837 is before 
+# 4741 - 4817, 4838 is after 
+
+# Create the 'PowerShift' variable based on ID ranges for Switzerland
+df_17$PowerShift <- ifelse(df_17$Country == "Switzerland" &
+                          ((df_17$ID >= 4653 & df_17$ID <= 4740) |
+                           (df_17$ID >= 4818 & df_17$ID <= 4837)),
+                        "Before",
+                        ifelse(df_17$Country == "Switzerland" &
+                                 ((df_17$ID >= 4741 & df_17$ID <= 4817) | df_17$ID == 4838),
+                               "After",
+                               NA))
+
+df_Switzerland <- df_17 %>%
+  filter(Country == "Switzerland") %>%  
+  mutate(Congruence = ifelse(PowerShift == "Before" & ide_Bin == 1, 1, # Congruent if right and before
+                            ifelse(PowerShift == "After" & ide_Bin == 0, 1, 0))) # Congruent if left and after
+df_Switzerland
+
+table(df_Switzerland$PowerShift)
+
+# After Before  
+#   78     108
+
+
+# US had a left government throughout data collection
+
+df_USA <- df_17 %>%
+  filter(Country == "USA") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 0, 1, 0)) # If left, then congruent
+df_USA
+
+# Poland had a right government throughout data collection
+
+df_Poland <- df_17 %>%
+  filter(Country == "Poland") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 1, 1, 0)) # If right, then congruent
+df_Poland
+
+# Chile had a left government throughout data collection
+
+df_Chile <- df_17 %>%
+  filter(Country == "Chile") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 0, 1, 0)) # If left, then congruent
+df_Chile
+
+# The Netherlands had a right government throughout data collection
+
+df_Netherlands <- df_17 %>%
+  filter(Country == "Netherlands") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 1, 1, 0)) # If right, then congruent
+df_Netherlands
+
+# The UK had a right government throughout data collection
+
+df_UK <- df_17 %>%
+  filter(Country == "Uk") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 1, 1, 0)) # If right, then congruent
+df_UK
+
+# Italy had a right government throughout data collection
+
+df_Italy <- df_17 %>%
+  filter(Country == "Italy") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 1, 1, 0)) # If right, then congruent
+df_Italy
+
+# Germany had a left government throughout data collection
+
+df_Germany <- df_17 %>%
+  filter(Country == "Germany") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 0, 1, 0)) # If left, then congruent
+df_Germany
+
+# France had a left government throughout data collection
+
+df_France <- df_17 %>%
+  filter(Country == "France") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 0, 1, 0)) # If left, then congruent
+df_France
+
+# Japan had a right government throughout data collection
+
+df_Japan <- df_17 %>%
+  filter(Country == "Japan") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 1, 1, 0)) # If right, then congruent
+df_Japan
+
+# Israel had a right government throughout data collection
+
+df_Israel <- df_17 %>%
+  filter(Country == "Israel") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 1, 1, 0)) # If right, then congruent
+df_Israel
+
+# Canada had a left government throughout data collection
+
+df_Canada <- df_17 %>%
+  filter(Country == "Canada") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 0, 1, 0)) # If left, then congruent
+df_Canada
+
+# Belgium had a right government throughout data collection
+
+df_Belgium <- df_17 %>%
+  filter(Country == "Belgium") %>%  
+  mutate(Congruence = ifelse(ide_Bin == 1, 1, 0)) # If right, then congruent
+df_Belgium
+
+# Not including Nigeria or Russia
+
+############ 
+
+# Combine the data sets
+
+congruency_df <- rbind(df_USA, df_UK, df_Poland, df_Netherlands, df_Japan, df_Italy, df_Israel, df_Germany, df_France, df_Canada, df_Belgium, df_Sweden, df_Brazil, df_Switzerland, df_Chile)
+
+congruency_df 
+ 
+# write.csv(congruency_df, file = "df180_Congruency.csv")
+# write.xlsx(congruency_df, file = "df180_Congruency.xlsx")
+
+```
+
+# GDP, CRI, EPI, CLIMATE CHANGE CONCERN, AND BELEIF POLARIZATION 
+
+# Data obtained from:
+<!-- GDP was obtained from https*//www.imf.org/en/Publications/WEO/weo-database/2022/April/download-entire-database, CRI was obtained from https*//www.germanwatch.org/sites/default/files/20-2-01e%20Global%20Climate%20Risk%20Index%202020_14.pdf, EPI was obtained from https*//epi.yale.edu/epi-results/2022/component/epi, and climate change concern was obtained from https*//www.nature.com/articles/nclimate2728#Sec10. Belief polarization was calculated by first median splitting the ideology variable and then subtracting conservative’s scores on belief in climate change from liberal’s scores on belief in climate change. All predictor variables were standardized prior to conducting analyses. -->
