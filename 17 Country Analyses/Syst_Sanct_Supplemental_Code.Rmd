@@ -313,7 +313,7 @@ Action_Ide
 ```
 
 
-###### POLITICAL CONGRUENCY ANALYSES ######
+###### POLITICAL CONGRUENCY ANALYSES ###### 
 
 
 ```{r, Prepare belief and policy congruency data set}

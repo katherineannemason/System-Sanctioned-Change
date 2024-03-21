@@ -446,7 +446,7 @@ df_Japan
 df_Israel <- df_17 %>%
   filter(Country == "Israel") %>%  
   mutate(Congruence = ifelse(ide_Bin == 1, 1, 0)) # If right, then congruent
-df_Israel
+df_Israel 
 
 # Canada had a left government throughout data collection
 
