@@ -1,5 +1,6 @@
 **Title:** 
-Effects of System-Sanctioned Framing on Climate Awareness and Environmental Action 
+Effects of System-Sanctioned Framing on Climate Awareness and Environmental Action in the U.S. and Beyond
+
 
 **Folders:**
 
