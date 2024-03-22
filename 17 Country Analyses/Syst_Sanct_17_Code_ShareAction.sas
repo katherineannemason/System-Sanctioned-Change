@@ -10,7 +10,7 @@
 libname df xlsx "/home/u63541235/sasuser.v94/ManyLabs/Syst_Sanct_17_Data.xlsx";
 
 * Look at the data set;
-
+ 
 proc print data = df.df;
 run;
 
