@@ -22,9 +22,7 @@ library(Hmisc)
 # Import data set
 
 dfAll <- read.csv("data63_ALL_CONDS.csv")
-dfAll
-
-dfAll
+dfAll # all countries + interventions 
 
 # Drop conditions except for SJ and control.
 
@@ -32,29 +30,9 @@ dfAll <- dfAll[dfAll$condName %in% c("Control", "SystemJust"), ]
 
 dfAll
 
-# Ideology, age, education, and income
+# Create ideology measure
 
 dfAll$ide <- (dfAll$Politics2_1 + dfAll$Politics2_9)/2
-
-# Make 0 = moderate
-dfAll$ide_c <- dfAll$ide - 50
-
-# Center age, education, and income.
-mean(dfAll$Age, na.rm = TRUE)
-dfAll$age_c <- dfAll$Age - 39.13618
-mean(dfAll$age_c, na.rm = TRUE) 
-
-mean(dfAll$Income, na.rm = TRUE)
-dfAll$income_c <- dfAll$Income - 4.205146
-mean(dfAll$income_c, na.rm = TRUE)
-
-mean(dfAll$Edu, na.rm = TRUE)
-dfAll$edu_c <- dfAll$Edu - 2.854966
-mean(dfAll$edu_c, na.rm = TRUE) 
-
-# Liberal and conservative for simple effects.
-dfAll$ide_low <- dfAll$ide_c - (-30)
-dfAll$ide_high <- dfAll$ide_c - (30)
 
 # Gender
 
@@ -261,7 +239,7 @@ sd(df_17$Age, na.rm = TRUE)
 
 ```{r, Prepare the USA data set}
 
-df_USA <- dfAll[dfAll$Country == "USA", ]
+df_USA <- dfAll[dfAll$Country == "USA", ] # SJ intervention in US
 
 ```
 
@@ -282,9 +260,9 @@ sd(df_USA$Age, na.rm = TRUE)
 
 ```{r, Export USA data sets}
 
-# Export df_USA, as it will be used for sharing and action analyses.
+# Export
 
-write.csv(df_USA, file = "Syst_Sanct_USA_Data.csv", row.names = TRUE)
+# write.csv(df_USA, file = "Syst_Sanct_USA_Data.csv", row.names = TRUE)
 
 ```
 
@@ -299,8 +277,8 @@ write.csv(df_USA, file = "Syst_Sanct_USA_Data.csv", row.names = TRUE)
 
 # Mean split ideology 
 
-df_17$ide_Bin[df_17$ide_c < 0] <- 0 # Liberal
-df_17$ide_Bin[df_17$ide_c > 0] <- 1 # Conservative
+df_17$ide_Bin[df_17$ide < 50] <- 0 # Liberal
+df_17$ide_Bin[df_17$ide > 50] <- 1 # Conservative
 
 df_17$ide_Bin
 

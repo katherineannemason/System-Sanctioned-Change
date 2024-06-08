@@ -42,6 +42,31 @@ library(effectsize)
 
 df_USA <- read.csv("Syst_Sanct_USA_Data.csv")
 
+table(df_USA$Gender)
+table(df_USA$condName)
+
+# Re-center
+
+mean(df_USA$ide, na.rm = TRUE)
+df_USA$ide_c <- df_USA$ide - 55.27103
+mean(df_USA$ide_c, na.rm = TRUE) 
+
+mean(df_USA$Age, na.rm = TRUE)
+df_USA$age_c <- df_USA$Age - 46.14511
+mean(df_USA$age_c, na.rm = TRUE) 
+
+mean(df_USA$Income, na.rm = TRUE)
+df_USA$income_c <- df_USA$Income - 4.534954
+mean(df_USA$income_c, na.rm = TRUE)
+
+mean(df_USA$Edu, na.rm = TRUE)
+df_USA$edu_c <- df_USA$Edu - 2.911722
+mean(df_USA$edu_c, na.rm = TRUE) 
+
+# Liberal and conservative for simple effects.
+df_USA$ide_low <- df_USA$ide_c - (-30)
+df_USA$ide_high <- df_USA$ide_c - (30)
+
 # Make the belief data set 
 
 USA_belief <- pivot_longer(df_USA, cols = c("Belief1", "Belief2", "Belief3", "Belief4"), names_to = "BeliefItem", values_to = "Belief")
@@ -54,23 +79,34 @@ USA_policy <- pivot_longer(df_USA, cols = c("Policy1", "Policy2", "Policy3", "Po
 
 USA_policy
 
-# Standardize belief and policy data sets
+# Standardize data sets
 
-z_USA_belief <- as.data.frame(scale(USA_Belief[, c("ide_c", "Age", "Edu", "Income","Belief")]), center = T)
+zdf_USA <- as.data.frame(scale(df_USA[, c("BELIEFcc", 'POLICYcc', "WEPTcc","ide_c", "Age", "age_c", "Edu", "edu_c", "Income", "income_c")]), center = T)
+
+zdf_USA <- cbind(df_USA[, c("ResponseId", "cond_effects", "gend_effects","SHAREcc"), drop = FALSE], as.data.frame(zdf_USA))
+
+# High and low ideology
+
+zdf_USA$ide_low <- zdf_USA$ide_c - (-1.26) # Equal to 30 points in unstandardized units
+zdf_USA$ide_high <- zdf_USA$ide_c - (1.26) # Equal to 30 points in unstandardized units
+
+z_USA_belief <- as.data.frame(scale(USA_belief[, c("ide_c", "Age", "age_c", "Edu", "edu_c", "Income", "income_c","Belief")]), center = T)
 
 z_USA_belief <- cbind(USA_belief[, c("ResponseId", "BeliefItem", "cond_effects", "gend_effects"), drop = FALSE], as.data.frame(z_USA_belief))
 
 z_USA_belief
 
-# Standardize 
+z_USA_belief$ide_low <- z_USA_belief$ide_c - (-1.26) 
+z_USA_belief$ide_high <- z_USA_belief$ide_c - (1.26) 
 
-z_USA_policy <- as.data.frame(scale(USA_policy[, c("ide_c", "Age", "Edu", "Income","Policy")]), center = T)
+z_USA_policy <- as.data.frame(scale(USA_policy[, c("ide_c", "Age", "age_c", "Edu", "edu_c", "Income", "income_c","Policy")]), center = T)
 
 z_USA_policy <- cbind(USA_policy[, c("ResponseId", "Country", "PolicyItem", "cond_effects", "gend_effects"), drop = FALSE], as.data.frame(z_USA_policy))
 
 z_USA_policy
 
-USA_belief
+z_USA_policy$ide_low <- z_USA_policy$ide_c - (-1.26) 
+z_USA_policy$ide_high <- z_USA_policy$ide_c - (1.26) 
 
 ```
 
@@ -80,17 +116,17 @@ USA_belief
 
 # Without covariates 
 
-USBelief_1.1 <- lmer(Belief ~ide_c + cond_effects + ide_c*cond_effects + (1 | BeliefItem), data = USA_belief)
+USBelief_1.1 <- lmer(Belief ~cond_effects*ide_c + (1 | BeliefItem), data = USA_belief)
 print(summary(USBelief_1.1))
 
 # Standardized 
 
-USBelief_1.2 <- lmer(Belief ~ide_c + cond_effects + ide_c*cond_effects + (1 | BeliefItem), data = z_USA_belief)
+USBelief_1.2 <- lmer(Belief ~cond_effects*ide_c + (1 | BeliefItem), data = z_USA_belief)
 print(summary(USBelief_1.2))
 
 # Add covariates
 
-USBelief_1.3 <- lmer(Belief ~ ide_c*cond_effects + gend_effects + Age + Edu + Income + (1 | BeliefItem), data = USA_belief)
+USBelief_1.3 <- lmer(Belief ~ cond_effects*ide_c + gend_effects + age_c + edu_c + income_c + (1 | BeliefItem), data = USA_belief)
 summary(USBelief_1.3)
 
 # Extract coefficients and make a table
@@ -103,33 +139,42 @@ USBelief_1.3_table
 
 # Standardized 
 
-USBelief_1.4 <- lmer(Belief ~ ide_c*cond_effects + gend_effects + Age + Edu + Income + (1 | BeliefItem), data = z_USA_belief)
+USBelief_1.4 <- lmer(Belief ~ cond_effects*ide_c + gend_effects + age_c + edu_c + income_c + (1 | BeliefItem), data = z_USA_belief)
 summary(USBelief_1.4)
 
 # Extract coefficients and make a table
 
 USBelief_1.4_table <- summary(USBelief_1.4)$coefficients %>%
-                      round(., 4) %>%
+                      round(., 3) %>%
                       kable()
-USBelief_1.3_table
 USBelief_1.4_table
 
 # Effect size conversion
 
-lme.dscore(USBelief_1.3, USA_belief,"lme4")
+ide_d <- 2 * 0.348 / sqrt(1 - 0.348	^2)
+ide_d 
+# -0.74
 
+cond_d <- 2 * 0.1806 / sqrt(1 - 0.1806^2)
+cond_d 
+#0.37
+
+int_d <- 2 * 0.015 / sqrt(1 - 0.015^2)
+int_d
+# -0.03
 
 ```
 
 ```{r, Belief graph USA}
 
 #Rename condition so that neater:
-USA_belief$condName2[USA_belief$condName == 'Control'] <- 'Control'
-USA_belief$condName2[USA_belief$condName == 'SystemJust'] <- 'System Sanctioned Change'
+
+df_USA$condName2[df_USA$condName == 'Control'] <- 'Control'
+df_USA$condName2[df_USA$condName == 'SystemJust'] <- 'System Sanctioned Change'
 
 df_USA$condName2 
 
-BeliefUSA_Graph <- lmer(Belief ~ ide*condName2 + gend_effects + Age + Edu + Income + (1 | BeliefItem), data = USA_belief)
+BeliefUSA_Graph <- lm(BELIEFcc ~ ide*condName2 + gend_effects + age_c + edu_c + income_c, data = df_USA)
 print(summary(BeliefUSA_Graph))
 
 set_theme(theme_classic())
@@ -142,13 +187,13 @@ graph1 <- plot_model(
   title = "A. Belief in Climate Change", 
   show.data = TRUE, 
   colors = c("darkgoldenrod", "maroon"),
-  dot.size = .3,
+  dot.size = .5,
   axis.title = '',
   axis.labels = 'Ideology',
   legend.title = 'Condition',
   line.size = .9,
-  ylim = c(50, 100),
-  # jitter=TRUE
+  jitter = TRUE,
+  ci.lvl = .95 # CI
 )
 
 graph1 <- graph1 +
@@ -156,24 +201,20 @@ graph1 <- graph1 +
   scale_x_continuous(limits = c(15, 87), breaks = c(20, 80), labels = c("Liberal/
 Left Wing", "Conservative/
 Right Wing")) +
-  scale_y_continuous(limits = c(50, 100)) +
+  scale_y_continuous(limits = c(0, 100)) +
   theme(
     plot.margin = unit(c(0, 4.5, 0, 4.5), "cm"),
     legend.position = "none",  # Remove legend
-    plot.title = element_text(size = 14, face = "bold"),
-    axis.title.x = element_text(size = 14),  
-    axis.title.y = element_text(size = 14),  
-    axis.text.x = element_text(size = 14),  
-    axis.text.y = element_text(size = 14)   
+    plot.title = element_text(size = 14, face = "bold", color = "black"),
+    axis.title.x = element_text(size = 14, color = "black"),  
+    axis.title.y = element_text(size = 14, color = "black"),  
+    axis.text.x = element_text(size = 14, color = "black"),  
+    axis.text.y = element_text(size = 14, color = "black")   
   )
 
 graph1
 
-
-# Save the graph
-
-# ggsave("CCBeliefGraphR_USA.png", plot = graph1, width = 8, height = 6, units = "in", dpi = 300)
-
+# ggsave("CCBeliefGraphR_USA.pdf", plot = graph1, width = 8, height = 6, units = "in", dpi = 300)
 
 ```
 
@@ -181,56 +222,68 @@ graph1
 
 ```{r, Effect of condition on support for policy, moderated by ideology}
 
-USPolicy_1.1 <- lmer(Policy ~ ide_c*cond_effects + (1 | PolicyItem), data = USA_policy)
+USPolicy_1.1 <- lmer(Policy ~ cond_effects*ide_c + (1 | PolicyItem), data = USA_policy)
 print(summary(USPolicy_1.1))
 
 # Standardize
 
-USPolicy_1.2 <- lmer(Policy ~ ide_c*cond_effects + (1 | PolicyItem), data = z_USA_policy)
+USPolicy_1.2 <- lmer(Policy ~ cond_effects*ide_c + (1 | PolicyItem), data = z_USA_policy)
 print(summary(USPolicy_1.2))
 
 # Add covariates 
 
-USPolicy_1.3 <- lmer(Policy ~ide_c*cond_effects + gend_effects + Age + Edu + Income + (1 | PolicyItem), data = USA_policy)
+USPolicy_1.3 <- lmer(Policy ~ cond_effects*ide_c + gend_effects + age_c + edu_c + income_c + (1 | PolicyItem), data = USA_policy)
 summary(USPolicy_1.3)
 
 # Extract coefficients and make a table
 
 USPolicy_1.3_table <- summary(USPolicy_1.3)$coefficients %>%
-                      round(., 4) %>%
+                      round(., 3) %>%
                       kable()
 
 USPolicy_1.3_table
 
-# Effect size conversion
-
-lme.dscore(USPolicy_1.3, USA_policy,"lme4")
-
 # Standardized 
 
-USPolicy_1.4 <- lmer(Policy ~ide_c*cond_effects + gend_effects + Age + Edu + Income + (1 | PolicyItem), data = z_USA_policy)
+USPolicy_1.4 <- lmer(Policy ~ cond_effects*ide_c + gend_effects + age_c + edu_c + income_c + (1 | PolicyItem), data = z_USA_policy)
 summary(USPolicy_1.4)
 
 # Extract coefficients and make a table
 
 USPolicy_1.4_table <- summary(USPolicy_1.4)$coefficients %>%
-                      round(., 4) %>%
+                      round(., 3) %>%
                       kable()
 
 USPolicy_1.4_table
 
+# Effect size conversion
+
+# lme.dscore(USPolicy_1.3, USA_policy,"lme4")
+
+ide_d <- 2 * 0.2343 / sqrt(1 - 0.2343	^2)
+ide_d 
+# -0.4820173
+
+cond_d <- 2 * 0.1234 / sqrt(1 - 0.1234^2)
+cond_d 
+#0.2487008
+
+int_d <- 2 * 0.0244 / sqrt(1 - 0.0244^2)
+int_d
+# -0.04881453
 
 ```
 
 ```{r, Policy graph USA}
 
 #Rename cond so that neater:
-USA_policy$condName2[USA_policy$condName == 'Control'] <- 'Control'
-USA_policy$condName2[USA_policy$condName == 'SystemJust'] <- 'System Justification'
+
+df_USA$condName2[df_USA$condName == 'Control'] <- 'Control'
+df_USA$condName2[df_USA$condName == 'SystemJust'] <- 'System Justification'
 
 set_theme(theme_classic())
 
-PolicyUSA_graph <- lmer(Policy ~ide + condName2 + ide*condName2 + gend_effects + Age + Edu + Income + (1 | PolicyItem), data = USA_policy)
+PolicyUSA_graph <- lm(POLICYcc ~ide + condName2 + ide*condName2 + gend_effects + age_c + edu_c + income_c, data = df_USA)
 
 graph2 <- plot_model(
   PolicyUSA_graph, 
@@ -240,13 +293,13 @@ graph2 <- plot_model(
   title = "B. Support for Pro-environmental Policies", 
   show.data = TRUE, 
   colors = c("darkgoldenrod", "maroon"),
-  dot.size = .3,
+  dot.size = .5,
   axis.title = '',
   axis.labels = 'Ideology',
   legend.title = 'Condition',
   line.size = .9,
-  ylim = c(50, 100),
-  # jitter=TRUE
+  jitter = TRUE,
+  ci.lvl = .95 # CI
 )
 
 graph2 <- graph2 +
@@ -254,20 +307,22 @@ graph2 <- graph2 +
   scale_x_continuous(limits = c(15, 87), breaks = c(20, 80), labels = c("Liberal/
 Left Wing", "Conservative/
 Right Wing")) +
-  scale_y_continuous(limits = c(30, 100)) +
+  scale_y_continuous(limits = c(0, 100)) +
   theme(
     plot.margin = unit(c(0, 4.5, 0, 4.5), "cm"),
     legend.position = "none",  # Remove legend
-    plot.title = element_text(size = 14, face = "bold"),  # Adjust title size
-    axis.title.x = element_text(size = 14),  # Adjust x-axis label size
-    axis.title.y = element_text(size = 14),  # Adjust y-axis label size
-    axis.text.x = element_text(size = 14),  # Adjust x-axis tick label size
-    axis.text.y = element_text(size = 14)   # Adjust y-axis tick label size
+    plot.title = element_text(size = 14, face = "bold", color = "black"),
+    axis.title.x = element_text(size = 14, color = "black"),  
+    axis.title.y = element_text(size = 14, color = "black"),  
+    axis.text.x = element_text(size = 14, color = "black"),  
+    axis.text.y = element_text(size = 14, color = "black")   
   )
 
 graph2
 
-# ggsave("CCPolicyGraphR_USA.png", plot = graph2, width = 8, height = 6, units = "in", dpi = 300)
+
+# ggsave("CCPolicyGraphR_USA.pdf", plot = graph2, width = 8, height = 6, units = "in", dpi = 300)
+
 ```
 
 ## SHARING ##
@@ -283,7 +338,7 @@ summary(USShare_1.1)
 
 # Add covariates 
 
-USShare_1.2 <- glm(SHAREcc ~ cond_effects*ide_c + gend_effects + Age + Edu + Income, data = df_USA, family = binomial(link = logit))
+USShare_1.2 <- glm(SHAREcc ~ cond_effects*ide_c + gend_effects + age_c + edu_c + income_c, data = df_USA, family = binomial(link = logit))
 summary(USShare_1.2)
 
 # Extract coefficients and make a table
@@ -294,17 +349,28 @@ USShare_1.2_table <- summary(USShare_1.2)$coefficients %>%
 
 USShare_1.2_table
 
-# Effect size conversion
+# Effect size conversion - r
 
-cond_d <- oddsratio_to_d(0.456335, log = TRUE)
+USShare_1.2_r <- summary(USShare_1.2)$coefficients %>%
+                    logoddsratio_to_r()  %>%
+                    round(., 2) %>%
+                    kable()
 
-ide_d <- oddsratio_to_d(-0.001945, log = TRUE)
+USShare_1.2_r
 
-interaction_d <- oddsratio_to_d(0.001344, log = TRUE)
+# Effect size conversion - d
 
-ide_d
-cond_d
-interaction_d
+ide_d <- oddsratio_to_d(-0.0019, log = TRUE)
+
+cond_d <- oddsratio_to_d(0.4634, log = TRUE)
+
+interaction_d <- oddsratio_to_d(0.0013, log = TRUE)
+
+ide_d #-0.001
+cond_d #0.26
+interaction_d #0.001
+
+summary(USShare_1.2)
 
 ```
 
@@ -327,13 +393,14 @@ graph3 <- plot_model(
   title = "C. Social Media Sharing Intentions", 
   show.data = TRUE, 
   colors = c("darkgoldenrod", "maroon"),
-  dot.size = .3,
+  dot.size = .5,
   axis.title = '',
   axis.labels = 'Ideology',
   legend.title = 'Condition',
-  line.size = .9,
+  line.size = 1.0,
   ylim = c(50, 100),
-  # jitter=TRUE
+  jitter=.07,
+  ci.lvl = .95,
 )
 
 graph3 <- graph3 +
@@ -341,20 +408,20 @@ graph3 <- graph3 +
   scale_x_continuous(limits = c(15, 87), breaks = c(20, 80), labels = c("Liberal/
 Left Wing", "Conservative/
 Right Wing")) +
+  scale_y_continuous(limits = c(0, 1)) +
   theme(
     plot.margin = unit(c(0, 4.5, 0, 4.5), "cm"),
     legend.position = "none",  # Remove legend
-    plot.title = element_text(size = 14, face = "bold"),  # Adjust title size
-    axis.title.x = element_text(size = 14),  # Adjust x-axis label size
-    axis.title.y = element_text(size = 14),  # Adjust y-axis label size
-    axis.text.x = element_text(size = 14),  # Adjust x-axis tick label size
-    axis.text.y = element_text(size = 14)   # Adjust y-axis tick label size
+    plot.title = element_text(size = 14, face = "bold", color = 'black'),  
+    axis.title.x = element_text(size = 14, color = 'black'), 
+    axis.title.y = element_text(size = 14, color = 'black'),  
+    axis.text.x = element_text(size = 14, color = 'black'),  
+    axis.text.y = element_text(size = 14, color = 'black')   
   )
 
 graph3
 
-# ggsave("CCSharingGraphR_USA.png", plot = graph3, width = 8, height = 6, units = "in", dpi = 300)
-
+# ggsave("CCSharingGraphR_USA.pdf", plot = graph3, width = 8, height = 6, units = "in", dpi = 300)
 
 ```
 
@@ -362,28 +429,41 @@ graph3
 
 ```{r, Effect of condition on action, moderated by ideology}
 
-#Make sure WEPTcc is factor
-
-df_USA$WEPTcc <- as.factor(df_USA$WEPTcc)
-
 # No covariates 
 
-USAction_1.1 <- clm(WEPTcc ~ cond_effects*ide_c, data = df_USA, threshold = "equidistant",  doFit = TRUE)
+USAction_1.1 <- lm(WEPTcc ~ cond_effects*ide_c, data = df_USA)
 summary(USAction_1.1)
+
+# Standardized
+
+USAction_1.2 <- lm(WEPTcc ~ cond_effects*ide_c, data = zdf_USA)
+summary(USAction_1.2)
 
 # Add covariates
 
-USAction_1.2 <- clm(WEPTcc ~ cond_effects*ide_c + gend_effects + Age + Edu + Income, data = df_USA, threshold = "equidistant",  doFit = TRUE)
-summary(USAction_1.2)
+USAction_1.3 <- lm(WEPTcc ~ cond_effects*ide_c + gend_effects + age_c + edu_c + income_c, data = df_USA)
+summary(USAction_1.3)
 
 # Extract coefficients and make a table
 
-USAction_1.2_table <- summary(USAction_1.2)$coefficients %>%
-                      round(., 4) %>%
+USAction_1.3_table <- summary(USAction_1.3)$coefficients %>%
+                      round(., 3) %>%
                       kable()
 
-USAction_1.2_table
+USAction_1.3_table
 
+# Standardized
+
+USAction_1.4 <- lm(WEPTcc ~ cond_effects*ide_c + gend_effects + age_c + edu_c + income_c, data = zdf_USA)
+summary(USAction_1.3)
+
+# Extract coefficients and make a table
+
+USAction_1.4_table <- summary(USAction_1.4)$coefficients %>%
+                      round(., 2) %>%
+                      kable()
+
+USAction_1.4_table
 
 ```
 
